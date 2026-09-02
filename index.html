@@ -56,7 +56,7 @@
   .pill.tap{cursor:pointer;background:transparent;font:inherit;letter-spacing:.1em;text-transform:uppercase;}
   .pill.tap:hover{border-color:var(--lamp);color:var(--lamp);}
 
-  .order,.board,.panel{
+  .order,.panel{
     background:var(--steel-800);border:1px solid var(--steel-700);
     border-radius:3px;padding:22px;
   }
@@ -98,41 +98,6 @@
   .fire:disabled{opacity:.5;cursor:progress;}
 
   /* menu board */
-  .board{margin-top:22px;}
-  .boardtop{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:18px;}
-  .boardtop h2{margin:0;font-size:20px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;}
-  .date{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:#7E959C;}
-  .courses{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));}
-  .course{border-top:2px solid var(--lamp);padding-top:12px;}
-  .course h3{
-    margin:0 0 12px;font-family:"IBM Plex Mono",monospace;font-size:11px;
-    letter-spacing:.2em;text-transform:uppercase;color:var(--lamp);
-  }
-  .mlist{list-style:none;margin:0 0 12px;padding:0;}
-  .mlist li{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px dashed var(--steel-700);}
-  .mname{flex:1;font-size:15.5px;line-height:1.35;}
-  .mmeta{display:block;font-family:"IBM Plex Mono",monospace;font-size:11px;color:#7E959C;margin-top:3px;}
-  .mrm{background:transparent;border:none;cursor:pointer;color:#5F757D;font-size:17px;line-height:1;padding:2px 4px;}
-  .mrm:hover{color:var(--alarm);}
-  .mempty{font-family:"IBM Plex Mono",monospace;font-size:12px;color:#5F757D;padding:8px 0 12px;}
-  .madd{display:flex;gap:7px;}
-  .madd input{
-    flex:1;min-width:0;background:var(--steel-900);color:var(--paper);
-    border:1px solid var(--steel-500);border-radius:2px;padding:9px 10px;
-    font-family:"IBM Plex Mono",monospace;font-size:16px;
-  }
-  .madd input::placeholder{color:#5F757D;}
-  .madd button{
-    cursor:pointer;background:transparent;border:1px solid var(--steel-500);border-radius:2px;
-    color:#B9C9CE;padding:0 14px;font-size:18px;line-height:1;
-  }
-  .madd button:hover{border-color:var(--lamp);color:var(--lamp);}
-  .clearday{
-    margin-top:16px;background:transparent;border:none;cursor:pointer;
-    font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;
-    text-transform:uppercase;color:#5F757D;padding:4px 0;
-  }
-  .clearday:hover{color:var(--alarm);}
 
   /* rail + tickets */
   .rail{margin-top:40px;}
@@ -178,16 +143,16 @@
     white-space:pre-wrap;color:#38332C;
   }
   .trow{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;}
-  .more,.add,.keep,.topap{
+  .more,.keep,.topap{
     cursor:pointer;padding:9px 11px;border-radius:2px;background:transparent;
     border:1px dashed #B9B3A5;color:#6B655A;font-family:"IBM Plex Mono",monospace;
     font-size:11px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
   }
-  .add,.keep,.topap{border-style:solid;}
+  .keep,.topap{border-style:solid;}
   .trow button[hidden]{display:none;}
   .more{flex:1;min-width:110px;}
-  .more:hover,.add:hover,.keep:hover{border-color:var(--ink);color:var(--ink);}
-  .add.done,.keep.done{background:var(--chive);border-color:var(--chive);color:#141A0E;}
+  .more:hover,.keep:hover{border-color:var(--ink);color:var(--ink);}
+  .keep.done{background:var(--chive);border-color:var(--chive);color:#141A0E;}
   .src{
     display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10px;
     letter-spacing:.1em;text-transform:uppercase;color:#8C857A;
@@ -276,30 +241,10 @@
       <div class="chips" id="rules"></div>
     </div>
 
-    <button class="fire" id="fire">Fire five tickets</button>
-  </section>
+    <p class="eyebrow" style="margin-top:18px">Anything else</p>
+    <textarea id="extra" rows="2" placeholder="Chief wants something light. Two vegetarians aboard. Use up the yoghurt."></textarea>
 
-  <section class="board">
-    <div class="boardtop"><h2>Menu</h2><span class="date" id="today"></span></div>
-    <div class="courses">
-      <div class="course">
-        <h3>Lunch</h3>
-        <ul class="mlist" id="list-lunch"></ul>
-        <div class="madd">
-          <input id="add-lunch" placeholder="Add your own…" aria-label="Add a lunch item">
-          <button type="button" data-meal="lunch" aria-label="Add lunch item">+</button>
-        </div>
-      </div>
-      <div class="course">
-        <h3>Dinner</h3>
-        <ul class="mlist" id="list-dinner"></ul>
-        <div class="madd">
-          <input id="add-dinner" placeholder="Add your own…" aria-label="Add a dinner item">
-          <button type="button" data-meal="dinner" aria-label="Add dinner item">+</button>
-        </div>
-      </div>
-    </div>
-    <button class="clearday" id="clearday">Clear the day</button>
+    <button class="fire" id="fire">Fire five tickets</button>
   </section>
 
   <section class="rail">
@@ -316,7 +261,6 @@
 const LS = {
   key:    "provision:key",
   lib:    "provision:library",
-  menu:   "provision:menu",
   recent: "provision:recent",
   book:   "provision:paprika"
 };
@@ -453,6 +397,7 @@ const staplesEl = document.getElementById("staples");
 const rulesEl   = document.getElementById("rules");
 const svcEl     = document.getElementById("service");
 const ingEl     = document.getElementById("ing");
+const extraEl   = document.getElementById("extra");
 const fireEl    = document.getElementById("fire");
 const outEl     = document.getElementById("out");
 const headEl    = document.getElementById("railhead");
@@ -508,64 +453,6 @@ RULES.forEach(r => {
   };
   rulesEl.appendChild(b);
 });
-
-/* ============================================================
-   menu for the day
-   ============================================================ */
-const todayKey = () => new Date().toISOString().slice(0,10);
-let menu = read(LS.menu, null) || { date:"", lunch:[], dinner:[] };
-if (menu.date !== todayKey()) menu = { date: todayKey(), lunch:[], dinner:[] };
-
-document.getElementById("today").textContent =
-  new Date().toLocaleDateString(undefined, { weekday:"long", day:"numeric", month:"long" });
-
-function saveMenu(){ menu.date = todayKey(); write(LS.menu, menu); }
-
-function renderMenu() {
-  ["lunch","dinner"].forEach(course => {
-    const ul = document.getElementById("list-" + course);
-    const items = menu[course] || [];
-    if (!items.length) {
-      ul.innerHTML = '<li style="border:none"><span class="mempty">Nothing on yet.</span></li>';
-      return;
-    }
-    ul.innerHTML = items.map((it,i) => {
-      const metaBits = [it.minutes ? it.minutes + " min" : "", it.note || ""].filter(Boolean).join(" · ");
-      return '<li><span class="mname">' + esc(it.name) +
-        (metaBits ? '<span class="mmeta">' + esc(metaBits) + '</span>' : '') +
-        '</span><button class="mrm" data-course="' + course + '" data-i="' + i +
-        '" aria-label="Remove ' + esc(it.name) + '">&times;</button></li>';
-    }).join("");
-  });
-  document.querySelectorAll(".mrm").forEach(b => {
-    b.onclick = () => { menu[b.dataset.course].splice(Number(b.dataset.i),1); renderMenu(); saveMenu(); };
-  });
-}
-
-function addToMenu(course, item) {
-  menu[course] = menu[course] || [];
-  menu[course].push(item);
-  renderMenu(); saveMenu();
-}
-
-["lunch","dinner"].forEach(course => {
-  const input = document.getElementById("add-" + course);
-  const btn = document.querySelector('.madd button[data-meal="' + course + '"]');
-  const commit = () => {
-    const v = input.value.trim();
-    if (!v) return;
-    addToMenu(course, { name: v });
-    input.value = ""; input.focus();
-  };
-  btn.onclick = commit;
-  input.addEventListener("keydown", e => { if (e.key === "Enter") commit(); });
-});
-
-document.getElementById("clearday").onclick = () => {
-  if (!menu.lunch.length && !menu.dinner.length) return;
-  menu = { date: todayKey(), lunch:[], dinner:[] };
-  renderMenu(); saveMenu();
-};
 
 /* ============================================================
    offline matching against the library
@@ -943,16 +830,15 @@ async function ask(prompt, tokensOut, schema) {
      text block at all — that was "No complete tickets in the reply", every time.
      Leave real headroom.
 
-     Deciding whether lamb, yoghurt and stale sourdough want to be one dish or
-     three is entirely judgment, so this runs on the more capable model at high
-     effort. It was briefly on Sonnet at effort low — that was chosen to stop
-     the budget blowing out, not for the cooking, and low effort is meant for
-     classification and subagents, not for this. */
+     Opus at low effort. High effort was tried and rejected in service: slow
+     enough that you leave the app — which kills the request, since iOS
+     suspends a backgrounded PWA — and the dishes came back over-elaborate for
+     crew food. Cooking judgment turned out not to need the extra thinking. */
   const payload = {
     model: "claude-opus-5",
     max_tokens: tokensOut || 16000,
     thinking: { type: "adaptive" },
-    output_config: { effort: "high" },
+    output_config: { effort: "low" },
     messages: [{ role: "user", content: prompt }]
   };
   /* Structured output replaces the assistant prefill, which this model rejects
@@ -1146,7 +1032,8 @@ function buildBriefs(mode) {
 }
 
 const GALLEY = `Galley equipment — this is a boat, so it is strict:
-Stovetop and a combi steam oven. That is all. No charcoal, no barbecue, no open flame, no smoker, no deep fryer, no outdoor cooking of any kind. Grilling means a grill pan on the stovetop, never a grill. Combi steam holds low temperatures well, so gentle low-temp and steamed cooking is fine. Assume the boat may be moving: nothing that needs a long, still, level surface.`;
+Stovetop and a combi steam oven. That is all. No charcoal, no barbecue, no open flame, no smoker, no deep fryer, no outdoor cooking of any kind. Grilling means a grill pan on the stovetop, never a grill. Combi steam holds low temperatures well, so gentle low-temp and steamed cooking is fine. Assume the boat may be moving: nothing that needs a long, still, level surface.
+Any sous vide is already done before service — if a dish uses sous vide meat, treat it as cooked and ready, and never write sous vide steps or timings into the method.`;
 
 const BRIEFS = {
   crew: `You are the crew chef on a working yacht, cooking for crew who have been on their feet since six and want a proper plate, not a concept.
@@ -1184,22 +1071,8 @@ function renderTickets(recipes, source, ctx) {
         ${source === "online" ? `<button class="topap" data-i="${i}" data-mode="save" ${r.method ? "" : "hidden"}>Save for Paprika</button>` : ""}
         ${source === "online" ? `<button class="topap" data-i="${i}" data-mode="share" ${r.method ? "" : "hidden"}>Share…</button>` : ""}
         ${source === "online" ? `<button class="keep" data-i="${i}">Keep</button>` : ""}
-        <button class="add" data-course="lunch" data-i="${i}">+ Lunch</button>
-        <button class="add" data-course="dinner" data-i="${i}">+ Dinner</button>
       </div>
     </article>`).join("") + "</div>";
-
-  outEl.querySelectorAll(".add").forEach(btn => {
-    btn.onclick = () => {
-      const r = recipes[Number(btn.dataset.i)];
-      addToMenu(btn.dataset.course, { name: r.title, note: r.note, minutes: r.minutes });
-      btn.classList.add("done"); btn.textContent = "Added";
-      setTimeout(() => {
-        btn.classList.remove("done");
-        btn.textContent = "+ " + (btn.dataset.course === "lunch" ? "Lunch" : "Dinner");
-      }, 1400);
-    };
-  });
 
   outEl.querySelectorAll(".topap").forEach(btn => {
     btn.onclick = async () => {
@@ -1302,7 +1175,19 @@ async function fire() {
   outEl.innerHTML = '<div class="state"><span class="feed">▌</span> Printing five tickets…</div>';
 
   const mealLine = meal ? `These are ${meal.toLowerCase()} dishes — pitch the weight and formality accordingly.` : "";
-  const rules_text = (mealLine + " " + (picked.size ? "Constraints: " + [...picked].join("; ") + "." : "")).trim();
+  /* These were being treated as hints — a "Cold dish, under 30 min, Salad"
+     fire came back with a hot dish and one that marinates overnight. They are
+     filters, not preferences, and the wording has to say so. */
+  const ruleLines = [...picked].map(r => "- " + r);
+  const rules_text = (mealLine + (picked.size
+    ? "\n\nHARD CONSTRAINTS. Every one of the five must satisfy all of these. A dish that breaks one is not a candidate, however good it is — drop it and think of another:\n" +
+      ruleLines.join("\n") +
+      "\n\"Under 30 min\" is total elapsed time from starting to plating, including any marinating, chilling, resting or proving. Overnight anything is not under 30 minutes. \"Cold dish\" means served cold or at room temperature, not a hot dish that has been left to cool."
+    : "")).trim();
+  /* Free text from the cook. Placed after the constraints and before the
+     galley so it can colour the brief without displacing the ingredients. */
+  const note = extraEl.value.trim();
+  const extra_text = note ? "\nFrom the cook, and it matters:\n" + note + "\n" : "";
   const briefs = buildBriefs(service);
   const recent = read(LS.recent, []);
   /* Two kinds of "they already have this": what is in their Paprika book, and
@@ -1332,6 +1217,7 @@ Every one of the five dishes is built on that list. This is the hard rule and it
 - "needs" is for a small pantry item they might be missing. It is never a protein and never the main event.
 
 ${rules_text}
+${extra_text}
 ${GALLEY}
 ${banned}
 Give exactly 5 dishes, one for each brief below, in this order.
@@ -1360,7 +1246,11 @@ Return exactly 5 tickets.`;
     stage = "reading the tickets";
     const all = readTickets(raw);
     if (!all.length) throw new Error("No complete tickets in the reply.");
-    const recipes = all.filter(r => onBrief(r, ing));
+    /* The prompt states the constraints; this is the backstop for when it
+       ignores them anyway, which is what prompted the wording above. */
+    const overTime = picked.has("Under 30 min");
+    const recipes = all.filter(r => onBrief(r, ing) &&
+      !(overTime && Number(r.minutes) > 30));
     if (!recipes.length) throw new Error("Nothing came back that used your ingredients.");
     const dropped = all.length - recipes.length;
 
@@ -1388,7 +1278,6 @@ Return exactly 5 tickets.`;
 fireEl.onclick = fire;
 ingEl.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") fire(); });
 
-renderMenu();
 paintStatus();
 paintBook();
 if (!apiKey) panel.classList.add("open");
