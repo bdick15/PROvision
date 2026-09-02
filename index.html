@@ -178,12 +178,13 @@
     white-space:pre-wrap;color:#38332C;
   }
   .trow{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;}
-  .more,.add,.keep{
+  .more,.add,.keep,.topap{
     cursor:pointer;padding:9px 11px;border-radius:2px;background:transparent;
     border:1px dashed #B9B3A5;color:#6B655A;font-family:"IBM Plex Mono",monospace;
     font-size:11px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
   }
-  .add,.keep{border-style:solid;}
+  .add,.keep,.topap{border-style:solid;}
+  .trow button[hidden]{display:none;}
   .more{flex:1;min-width:110px;}
   .more:hover,.add:hover,.keep:hover{border-color:var(--ink);color:var(--ink);}
   .add.done,.keep.done{background:var(--chive);border-color:var(--chive);color:#141A0E;}
@@ -807,21 +808,48 @@ const stamp = d => d.getFullYear() + "-" +
   String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") + ":" +
   String(d.getSeconds()).padStart(2, "0");
 
-/* A ticket is thinner than a Paprika recipe. Ingredients come from what they
-   had plus what they need to buy; directions prefer the full method if it has
-   been fetched, and fall back to the three steps. */
+/* The method is asked for as a one-line ingredient list with quantities, then
+   numbered steps. Split it back apart: Paprika wants one ingredient per line,
+   and a ticket's "uses" are matching tokens, not a shopping list — sending
+   those produced recipes whose ingredients read "rice, cumin (to buy)". */
+function splitMethod(method) {
+  const text = String(method || "").trim();
+  if (!text) return null;
+
+  const blank = text.indexOf("\n\n");
+  const firstStep = text.search(/\n\s*1[.)]\s/);
+  const cut = (blank > -1 && (firstStep === -1 || blank < firstStep)) ? blank : firstStep;
+  const head = (cut > -1 ? text.slice(0, cut) : text).replace(/^\s*ingredients?\s*:\s*/i, "");
+  const body = cut > -1 ? text.slice(cut).trim() : "";
+
+  /* Split on commas, but not ones inside brackets — "thighs (2 per person,
+     bone-in)" is one ingredient, not two. */
+  const ingredients = head.split(/,(?![^(]*\))/)
+    .map(x => x.trim().replace(/[.;]$/, "").trim())
+    .filter(Boolean);
+
+  return { ingredients, directions: body };
+}
+
 function toPaprika(r, method) {
-  const ingredients = [...(r.uses || []), ...(r.needs || []).map(n => n + " (to buy)")].join("\n");
-  const directions = (method && method.trim())
-    ? method.trim()
+  const m = splitMethod(method);
+  const ingredients = m && m.ingredients.length
+    ? m.ingredients.join("\n")
+    : [...(r.uses || []), ...(r.needs || []).map(n => n + " (to buy)")].join("\n");
+  const directions = m && m.directions
+    ? m.directions
     : (r.steps || []).map((s, i) => (i + 1) + ". " + s).join("\n");
+  /* The buy list is the one thing the method's ingredient line doesn't
+     distinguish, so keep it where it stays useful. */
+  const buy = (r.needs || []).length ? "To buy: " + r.needs.join(", ") : "";
+  const notes = [r.note || "", buy].filter(Boolean).join("\n\n");
   return {
     uid: uuid(),
     name: r.title,
     ingredients,
     directions,
     description: "",
-    notes: r.note || "",
+    notes,
     nutritional_info: "",
     prep_time: "",
     cook_time: r.minutes ? r.minutes + " min" : "",
@@ -1147,8 +1175,8 @@ function renderTickets(recipes, source, ctx) {
       ${r.method ? `<div class="method">${esc(r.method)}</div>` : ""}
       <div class="trow">
         ${source === "online" && !r.method ? `<button class="more" data-i="${i}">Full method</button>` : ""}
-        ${source === "online" ? `<button class="topap" data-i="${i}" data-mode="save">Save for Paprika</button>` : ""}
-        ${source === "online" ? `<button class="topap" data-i="${i}" data-mode="share">Share…</button>` : ""}
+        ${source === "online" ? `<button class="topap" data-i="${i}" data-mode="save" ${r.method ? "" : "hidden"}>Save for Paprika</button>` : ""}
+        ${source === "online" ? `<button class="topap" data-i="${i}" data-mode="share" ${r.method ? "" : "hidden"}>Share…</button>` : ""}
         ${source === "online" ? `<button class="keep" data-i="${i}">Keep</button>` : ""}
         <button class="add" data-course="lunch" data-i="${i}">+ Lunch</button>
         <button class="add" data-course="dinner" data-i="${i}">+ Dinner</button>
@@ -1237,6 +1265,8 @@ Plain text only, no markdown. Start with a one-line ingredient list with quantit
         const d = document.createElement("div");
         d.className = "method"; d.textContent = method.trim();
         card.insertBefore(d, card.querySelector(".trow"));
+        /* Only now are there real quantities to hand over. */
+        card.querySelectorAll(".topap").forEach(b => { b.hidden = false; });
         btn.remove();
       } catch (e) {
         btn.disabled = false; btn.textContent = "Try again";

@@ -149,14 +149,24 @@ payload is already compressed. Verified against Python's `zipfile` and
 confirmed on device: Paprika imports it, so the missing `hash` and
 `photo_data` fields do not matter.
 
-**Do not give the shared File a MIME type.** Tested on iOS across four
-types: with any type set — `application/octet-stream` included — Paprika
-does not appear in the share sheet at all, because iOS resolves the
-receiving app from the item's type and stops there. Omit the type and it
-falls back to the `.paprikarecipes` extension, which Paprika claims, and it
-imports in one tap. Delivery is `navigator.share({files})` and must happen
-inside the tap's activation window, with a download fallback for anywhere
-sharing is unavailable.
+**The share sheet never routes to Paprika — don't try again.** Safari hands
+a shared file over as generic data, and Paprika claims the
+`.paprikarecipes` extension, which only survives once the file is on disk.
+Tested across four MIME types including omitting it entirely; Paprika
+appears in the sheet under none of them. **Save for Paprika** therefore
+writes straight to Files with an `<a download>`, skipping the sheet, and
+that route imports in one tap. `Share…` stays for AirDrop and Mail.
+
+**Ingredients come from the full method, not the ticket.** A ticket's
+`uses` are the words the matcher keyed on and `needs` is a shopping list,
+so sending those produced Paprika recipes whose ingredients read "rice,
+cumin (to buy)" with no quantities anywhere. The method is asked for as a
+one-line ingredient list followed by numbered steps, and `splitMethod()`
+takes it back apart — one ingredient per line, which is what Paprika
+expects, splitting on commas except inside brackets so "thighs (2 per
+person, bone-in)" stays whole. Both send buttons are hidden until the full
+method has been fetched, because before that there is nothing worth
+sending.
 
 ## Things that will bite
 
