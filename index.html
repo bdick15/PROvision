@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>PROvision</title>
+<meta name="theme-color" content="#0F1519">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PROvision">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --steel-900:#0F1519; --steel-800:#18232A; --steel-700:#22323A; --steel-500:#3A5058;
+    --paper:#F2F0E9; --paper-shade:#DFDCD0; --ink:#1B1714;
+    --lamp:#FFB020; --chive:#93AC6E; --alarm:#E2603F;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--steel-900);color:var(--paper);
+    font-family:"IBM Plex Sans Condensed",system-ui,sans-serif;
+    min-height:100vh;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:env(safe-area-inset-top) 20px 90px;}
+
+  .pass{position:relative;padding:44px 0 30px;text-align:center;}
+  .pass::before{
+    content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);
+    width:min(720px,92%);height:200px;
+    background:radial-gradient(ellipse at 50% 0%, rgba(255,176,32,.28), rgba(255,176,32,0) 68%);
+    pointer-events:none;
+  }
+  .bar{
+    width:min(560px,88%);height:7px;margin:0 auto 24px;border-radius:4px;
+    background:linear-gradient(90deg,#5A4318,var(--lamp) 18%,#FFD37A 50%,var(--lamp) 82%,#5A4318);
+    box-shadow:0 0 26px rgba(255,176,32,.55);position:relative;z-index:1;
+  }
+  h1{position:relative;z-index:1;margin:0;font-size:clamp(42px,10vw,74px);font-weight:700;letter-spacing:.02em;}
+  h1 .pro{color:var(--lamp);}
+  .sub{
+    position:relative;z-index:1;margin:10px auto 0;max-width:40ch;
+    font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.6;color:#9FB3B9;
+  }
+  .statusrow{
+    position:relative;z-index:1;display:flex;justify-content:center;gap:8px;margin-top:16px;
+    font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  }
+  .pill{border:1px solid var(--steel-500);border-radius:100px;padding:5px 12px;color:#8DA3AA;}
+  .pill.on{border-color:var(--chive);color:var(--chive);}
+  .pill.off{border-color:var(--alarm);color:#F0A995;}
+  .pill.tap{cursor:pointer;background:transparent;font:inherit;letter-spacing:.1em;text-transform:uppercase;}
+  .pill.tap:hover{border-color:var(--lamp);color:var(--lamp);}
+
+  .order,.board,.panel{
+    background:var(--steel-800);border:1px solid var(--steel-700);
+    border-radius:3px;padding:22px;
+  }
+  .order{margin-top:6px;}
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--lamp);margin:0 0 10px;
+  }
+  textarea{
+    width:100%;min-height:96px;resize:vertical;background:var(--steel-900);color:var(--paper);
+    border:1px solid var(--steel-500);border-radius:2px;
+    font-family:"IBM Plex Mono",monospace;font-size:16px;line-height:1.65;padding:14px;
+  }
+  textarea::placeholder{color:#5F757D;}
+  textarea:focus-visible,button:focus-visible,.chip:focus-visible,input:focus-visible{
+    outline:2px solid var(--lamp);outline-offset:2px;
+  }
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 0;}
+  .chip{
+    font-family:"IBM Plex Mono",monospace;font-size:12px;background:transparent;color:#B9C9CE;
+    cursor:pointer;border:1px solid var(--steel-500);border-radius:100px;padding:6px 12px;
+    transition:background .15s,color .15s,border-color .15s;
+  }
+  .chip:hover{border-color:var(--chive);color:var(--paper);}
+  .chip[aria-pressed="true"]{background:var(--chive);border-color:var(--chive);color:#141A0E;}
+  .chip.svc{padding:9px 20px;font-size:12.5px;}
+  .chip.svc:hover{border-color:var(--paper);}
+  .chip.svc[aria-pressed="true"]{background:var(--paper);border-color:var(--paper);color:var(--ink);font-weight:600;}
+  .chip.meal:hover{border-color:var(--lamp);}
+  .chip.meal[aria-pressed="true"]{background:var(--lamp);border-color:var(--lamp);color:#1B1200;}
+  .chipsep{width:1px;align-self:stretch;background:var(--steel-500);margin:2px 5px;}
+  .rules{margin-top:18px;padding-top:16px;border-top:1px dashed var(--steel-700);}
+  .fire{
+    margin-top:20px;width:100%;padding:16px;cursor:pointer;background:var(--lamp);color:#1B1200;
+    border:none;border-radius:2px;font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;
+    font-size:17px;letter-spacing:.2em;text-transform:uppercase;transition:filter .15s;
+  }
+  .fire:hover:not(:disabled){filter:brightness(1.1);}
+  .fire:disabled{opacity:.5;cursor:progress;}
+
+  /* menu board */
+  .board{margin-top:22px;}
+  .boardtop{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:18px;}
+  .boardtop h2{margin:0;font-size:20px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;}
+  .date{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:#7E959C;}
+  .courses{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));}
+  .course{border-top:2px solid var(--lamp);padding-top:12px;}
+  .course h3{
+    margin:0 0 12px;font-family:"IBM Plex Mono",monospace;font-size:11px;
+    letter-spacing:.2em;text-transform:uppercase;color:var(--lamp);
+  }
+  .mlist{list-style:none;margin:0 0 12px;padding:0;}
+  .mlist li{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px dashed var(--steel-700);}
+  .mname{flex:1;font-size:15.5px;line-height:1.35;}
+  .mmeta{display:block;font-family:"IBM Plex Mono",monospace;font-size:11px;color:#7E959C;margin-top:3px;}
+  .mrm{background:transparent;border:none;cursor:pointer;color:#5F757D;font-size:17px;line-height:1;padding:2px 4px;}
+  .mrm:hover{color:var(--alarm);}
+  .mempty{font-family:"IBM Plex Mono",monospace;font-size:12px;color:#5F757D;padding:8px 0 12px;}
+  .madd{display:flex;gap:7px;}
+  .madd input{
+    flex:1;min-width:0;background:var(--steel-900);color:var(--paper);
+    border:1px solid var(--steel-500);border-radius:2px;padding:9px 10px;
+    font-family:"IBM Plex Mono",monospace;font-size:16px;
+  }
+  .madd input::placeholder{color:#5F757D;}
+  .madd button{
+    cursor:pointer;background:transparent;border:1px solid var(--steel-500);border-radius:2px;
+    color:#B9C9CE;padding:0 14px;font-size:18px;line-height:1;
+  }
+  .madd button:hover{border-color:var(--lamp);color:var(--lamp);}
+  .clearday{
+    margin-top:16px;background:transparent;border:none;cursor:pointer;
+    font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;
+    text-transform:uppercase;color:#5F757D;padding:4px 0;
+  }
+  .clearday:hover{color:var(--alarm);}
+
+  /* rail + tickets */
+  .rail{margin-top:40px;}
+  .railhead{
+    display:flex;align-items:center;gap:14px;font-family:"IBM Plex Mono",monospace;
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#7E959C;margin-bottom:20px;
+  }
+  .railhead::after{content:"";flex:1;height:1px;background:var(--steel-700);}
+  .tickets{display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));}
+  .ticket{
+    background:var(--paper);color:var(--ink);border-radius:2px 2px 0 0;padding:18px 18px 26px;
+    position:relative;box-shadow:0 10px 30px rgba(0,0,0,.45);
+    animation:print .45s cubic-bezier(.2,.8,.3,1) backwards;
+  }
+  .ticket::after{
+    content:"";position:absolute;left:0;right:0;bottom:-9px;height:10px;background:var(--paper);
+    -webkit-mask-image:radial-gradient(circle at 6px 0,transparent 5px,#000 5.5px);
+    mask-image:radial-gradient(circle at 6px 0,transparent 5px,#000 5.5px);
+    -webkit-mask-size:12px 10px;mask-size:12px 10px;
+  }
+  @keyframes print{from{opacity:0;transform:translateY(-18px) rotate(-.6deg);}to{opacity:1;transform:none;}}
+  .tnum{
+    font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;color:#8C857A;
+    display:flex;justify-content:space-between;border-bottom:1px solid var(--paper-shade);padding-bottom:8px;
+  }
+  .tname{font-size:23px;font-weight:700;line-height:1.15;margin:12px 0 6px;letter-spacing:-.01em;}
+  .tnote{font-size:14px;line-height:1.5;color:#4E483F;margin:0 0 14px;}
+  .tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;}
+  .tag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;padding:3px 7px;border-radius:2px;background:#E4E7D8;color:#4A5735;}
+  .tag.need{background:#F5E2D6;color:#7C4A2E;}
+  .tsteps{margin:0;padding:0;list-style:none;border-top:1px solid var(--paper-shade);counter-reset:s;}
+  .tsteps li{
+    font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.6;
+    padding:9px 0 0 22px;position:relative;color:#38332C;
+  }
+  .tsteps li::before{
+    content:counter(s);counter-increment:s;position:absolute;left:0;top:9px;
+    font-size:11px;color:var(--alarm);font-weight:600;
+  }
+  .method{
+    margin-top:14px;padding-top:12px;border-top:1px solid var(--paper-shade);
+    font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.7;
+    white-space:pre-wrap;color:#38332C;
+  }
+  .trow{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;}
+  .more,.add,.keep{
+    cursor:pointer;padding:9px 11px;border-radius:2px;background:transparent;
+    border:1px dashed #B9B3A5;color:#6B655A;font-family:"IBM Plex Mono",monospace;
+    font-size:11px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
+  }
+  .add,.keep{border-style:solid;}
+  .more{flex:1;min-width:110px;}
+  .more:hover,.add:hover,.keep:hover{border-color:var(--ink);color:var(--ink);}
+  .add.done,.keep.done{background:var(--chive);border-color:var(--chive);color:#141A0E;}
+  .src{
+    display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10px;
+    letter-spacing:.1em;text-transform:uppercase;color:#8C857A;
+  }
+
+  .state{
+    font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.7;color:#8DA3AA;
+    border:1px dashed var(--steel-700);border-radius:2px;padding:34px 20px;text-align:center;
+  }
+  .state.err{color:#F0A995;border-color:#5C3327;background:rgba(226,96,63,.07);}
+  .feed{display:inline-block;animation:feed 1s steps(4) infinite;}
+  @keyframes feed{to{transform:translateY(-3px);}}
+
+  /* settings panel */
+  .panel{margin-top:22px;display:none;}
+  .panel.open{display:block;}
+  .panel h2{margin:0 0 6px;font-size:18px;letter-spacing:.16em;text-transform:uppercase;}
+  .panel p{font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.65;color:#8DA3AA;}
+  .panel input[type=password],.panel input[type=text],.panel textarea{
+    width:100%;background:var(--steel-900);color:var(--paper);border:1px solid var(--steel-500);
+    border-radius:2px;padding:11px;font-family:"IBM Plex Mono",monospace;font-size:15px;margin-top:8px;
+  }
+  .prow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+  .btn{
+    cursor:pointer;background:transparent;border:1px solid var(--steel-500);border-radius:2px;
+    color:#B9C9CE;padding:10px 16px;font-family:"IBM Plex Mono",monospace;font-size:11.5px;
+    letter-spacing:.12em;text-transform:uppercase;
+  }
+  .btn:hover{border-color:var(--lamp);color:var(--lamp);}
+  .btn.primary{background:var(--lamp);border-color:var(--lamp);color:#1B1200;font-weight:600;}
+  .btn.danger:hover{border-color:var(--alarm);color:var(--alarm);}
+  .note{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--chive);margin-top:10px;}
+
+  @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="pass">
+    <div class="bar"></div>
+    <h1><span class="pro">PRO</span>vision</h1>
+    <p class="sub">Tell me what's aboard. Five tickets come back.</p>
+    <div class="statusrow">
+      <span class="pill" id="netpill">checking</span>
+      <span class="pill" id="libpill">library 0</span>
+      <button class="pill tap" id="gear" type="button">Settings</button>
+    </div>
+  </header>
+
+  <section class="panel" id="panel">
+    <h2>Settings</h2>
+    <p>Your API key is stored on this device only. It is never sent anywhere except Anthropic.</p>
+    <input type="password" id="keyin" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">
+    <div class="prow">
+      <button class="btn primary" id="savekey">Save key</button>
+      <button class="btn danger" id="clearkey">Remove key</button>
+    </div>
+    <p style="margin-top:22px">Import your Paprika export so the generator stops suggesting dishes you already have. Nothing is uploaded — titles and ingredients stay on this device, and re-importing rebuilds it any time.</p>
+    <div class="prow">
+      <button class="btn" id="bookbtn">Import from Paprika</button>
+      <button class="btn danger" id="bookclear">Forget book</button>
+    </div>
+    <input type="file" id="bookfile" accept=".paprikarecipes,.paprikarecipe" style="display:none">
+    <p class="note" id="booknote"></p>
+
+    <p style="margin-top:22px">Your library lives on this device. Export it now and then so a lost phone doesn't take it with you.</p>
+    <div class="prow">
+      <button class="btn" id="export">Export library</button>
+      <button class="btn" id="importbtn">Import library</button>
+    </div>
+    <textarea id="iobox" rows="4" placeholder="Paste an exported library here, then press Import again." style="display:none"></textarea>
+    <p class="note" id="panelnote"></p>
+  </section>
+
+  <section class="order">
+    <p class="eyebrow">Service</p>
+    <div class="chips" id="service"></div>
+
+    <p class="eyebrow" style="margin-top:18px">On hand</p>
+    <textarea id="ing" placeholder="half a red cabbage, two eggs, feta, stale sourdough, a lemon, chorizo…"></textarea>
+    <div class="chips" id="staples"></div>
+
+    <div class="rules">
+      <p class="eyebrow">Rules for the kitchen</p>
+      <div class="chips" id="rules"></div>
+    </div>
+
+    <button class="fire" id="fire">Fire five tickets</button>
+  </section>
+
+  <section class="board">
+    <div class="boardtop"><h2>Menu</h2><span class="date" id="today"></span></div>
+    <div class="courses">
+      <div class="course">
+        <h3>Lunch</h3>
+        <ul class="mlist" id="list-lunch"></ul>
+        <div class="madd">
+          <input id="add-lunch" placeholder="Add your own…" aria-label="Add a lunch item">
+          <button type="button" data-meal="lunch" aria-label="Add lunch item">+</button>
+        </div>
+      </div>
+      <div class="course">
+        <h3>Dinner</h3>
+        <ul class="mlist" id="list-dinner"></ul>
+        <div class="madd">
+          <input id="add-dinner" placeholder="Add your own…" aria-label="Add a dinner item">
+          <button type="button" data-meal="dinner" aria-label="Add dinner item">+</button>
+        </div>
+      </div>
+    </div>
+    <button class="clearday" id="clearday">Clear the day</button>
+  </section>
+
+  <section class="rail">
+    <div class="railhead" id="railhead">Rail — empty</div>
+    <div id="out"><div class="state">Nothing on the rail yet. Load up the fridge and fire.</div></div>
+  </section>
+
+</div>
+
+<script>
+/* ============================================================
+   PROvision — storage
+   ============================================================ */
+const LS = {
+  key:    "provision:key",
+  lib:    "provision:library",
+  menu:   "provision:menu",
+  recent: "provision:recent",
+  book:   "provision:paprika"
+};
+const read = (k, fallback) => {
+  try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; }
+  catch (e) { return fallback; }
+};
+const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+
+let apiKey = "";
+try { apiKey = localStorage.getItem(LS.key) || ""; } catch (e) {}
+
+/* Holds only what you Keep. There is no seed library and no offline mode —
+   the boat has Starlink, so a fire with no signal is an honest error, not a
+   silent downgrade to canned results. */
+let library = read(LS.lib, []);
+if (!Array.isArray(library)) library = [];
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+/* ============================================================
+   status pills + settings
+   ============================================================ */
+const netPill = document.getElementById("netpill");
+const libPill = document.getElementById("libpill");
+const panel   = document.getElementById("panel");
+const pnote   = document.getElementById("panelnote");
+
+function paintStatus() {
+  const online = navigator.onLine;
+  netPill.textContent = online ? (apiKey ? "online" : "no key") : "offline";
+  netPill.className = "pill " + (online && apiKey ? "on" : "off");
+  libPill.textContent = book.recipes.length
+    ? "book " + book.recipes.length
+    : "kept " + library.length;
+}
+addEventListener("online", paintStatus);
+addEventListener("offline", paintStatus);
+
+document.getElementById("gear").onclick = () => {
+  panel.classList.toggle("open");
+  if (panel.classList.contains("open")) document.getElementById("keyin").value = apiKey;
+};
+
+document.getElementById("savekey").onclick = () => {
+  const v = document.getElementById("keyin").value.trim();
+  if (!v) return;
+  apiKey = v;
+  try { localStorage.setItem(LS.key, v); } catch (e) {}
+  pnote.textContent = "Key saved on this device.";
+  paintStatus();
+};
+
+document.getElementById("clearkey").onclick = () => {
+  apiKey = "";
+  try { localStorage.removeItem(LS.key); } catch (e) {}
+  document.getElementById("keyin").value = "";
+  pnote.textContent = "Key removed. The library still works offline.";
+  paintStatus();
+};
+
+const bookNote = document.getElementById("booknote");
+const bookFile = document.getElementById("bookfile");
+
+function paintBook() {
+  bookNote.textContent = book.recipes.length
+    ? book.recipes.length + " recipes known, imported " + new Date(book.importedAt).toLocaleDateString()
+    : "No Paprika book imported yet.";
+}
+
+document.getElementById("bookbtn").onclick = () => bookFile.click();
+document.getElementById("bookclear").onclick = () => {
+  book = { importedAt: 0, recipes: [] };
+  write(LS.book, book);
+  paintStatus(); paintBook();
+};
+
+bookFile.onchange = async () => {
+  const f = bookFile.files && bookFile.files[0];
+  if (!f) return;
+  bookNote.textContent = "Reading " + f.name + "…";
+  try {
+    const entries = await parsePaprika(f);
+    if (!entries.length) throw new Error("no recipes found in that file");
+    const n = setBook(entries);
+    bookNote.textContent = "Imported " + n + " recipes from " + f.name + ".";
+  } catch (err) {
+    bookNote.textContent = "Couldn't read that: " + err.message;
+  }
+  bookFile.value = "";
+};
+
+const iobox = document.getElementById("iobox");
+document.getElementById("export").onclick = () => {
+  iobox.style.display = "block";
+  iobox.value = JSON.stringify(library);
+  iobox.select();
+  pnote.textContent = "Copy this and mail it to yourself.";
+};
+document.getElementById("importbtn").onclick = () => {
+  if (iobox.style.display === "none" || !iobox.value.trim()) {
+    iobox.style.display = "block";
+    iobox.value = "";
+    pnote.textContent = "Paste an export above, then press Import again.";
+    return;
+  }
+  try {
+    const incoming = JSON.parse(iobox.value);
+    if (!Array.isArray(incoming)) throw new Error("not a library");
+    const seen = new Set(library.map(r => r.title.toLowerCase()));
+    let added = 0;
+    incoming.forEach(r => {
+      if (r && r.title && !seen.has(r.title.toLowerCase())) {
+        library.push(r); seen.add(r.title.toLowerCase()); added++;
+      }
+    });
+    write(LS.lib, library);
+    paintStatus();
+    pnote.textContent = "Added " + added + " recipe" + (added === 1 ? "" : "s") + ". Nothing was overwritten.";
+    iobox.value = "";
+  } catch (e) {
+    pnote.textContent = "That didn't look like an export.";
+  }
+};
+
+/* ============================================================
+   controls
+   ============================================================ */
+const STAPLES = ["eggs","butter","garlic","onion","lemon","olive oil","rice","pasta","chicken thighs","chickpeas","parmesan","yoghurt","potatoes","tinned tomatoes"];
+const MEALS   = ["Lunch","Dinner"];
+const RULES   = ["Vegetarian","No oven","Under 30 min","One pan","Salad","Appetizer","Main","Soup","Hot dish","Cold dish"];
+
+const staplesEl = document.getElementById("staples");
+const rulesEl   = document.getElementById("rules");
+const svcEl     = document.getElementById("service");
+const ingEl     = document.getElementById("ing");
+const fireEl    = document.getElementById("fire");
+const outEl     = document.getElementById("out");
+const headEl    = document.getElementById("railhead");
+const picked    = new Set();
+let meal = null;
+let service = "crew";
+
+[["crew","Crew"],["guest","Guest"]].forEach(([id,label]) => {
+  const b = document.createElement("button");
+  b.className = "chip svc"; b.type = "button"; b.textContent = label;
+  b.setAttribute("aria-pressed", String(id === service));
+  b.onclick = () => {
+    service = id;
+    svcEl.querySelectorAll(".chip.svc").forEach(o => o.setAttribute("aria-pressed","false"));
+    b.setAttribute("aria-pressed","true");
+  };
+  svcEl.appendChild(b);
+});
+
+STAPLES.forEach(s => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.type = "button"; b.textContent = "+ " + s;
+  b.onclick = () => {
+    const v = ingEl.value.trim();
+    ingEl.value = v ? v.replace(/,\s*$/,"") + ", " + s : s;
+    ingEl.focus();
+  };
+  staplesEl.appendChild(b);
+});
+
+MEALS.forEach(m => {
+  const b = document.createElement("button");
+  b.className = "chip meal"; b.type = "button"; b.textContent = m;
+  b.setAttribute("aria-pressed","false");
+  b.onclick = () => {
+    const on = b.getAttribute("aria-pressed") === "true";
+    rulesEl.querySelectorAll(".chip.meal").forEach(o => o.setAttribute("aria-pressed","false"));
+    b.setAttribute("aria-pressed", String(!on));
+    meal = on ? null : m;
+  };
+  rulesEl.appendChild(b);
+});
+rulesEl.appendChild(Object.assign(document.createElement("div"), { className: "chipsep" }));
+
+RULES.forEach(r => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.type = "button"; b.textContent = r;
+  b.setAttribute("aria-pressed","false");
+  b.onclick = () => {
+    const on = b.getAttribute("aria-pressed") === "true";
+    b.setAttribute("aria-pressed", String(!on));
+    on ? picked.delete(r) : picked.add(r);
+  };
+  rulesEl.appendChild(b);
+});
+
+/* ============================================================
+   menu for the day
+   ============================================================ */
+const todayKey = () => new Date().toISOString().slice(0,10);
+let menu = read(LS.menu, null) || { date:"", lunch:[], dinner:[] };
+if (menu.date !== todayKey()) menu = { date: todayKey(), lunch:[], dinner:[] };
+
+document.getElementById("today").textContent =
+  new Date().toLocaleDateString(undefined, { weekday:"long", day:"numeric", month:"long" });
+
+function saveMenu(){ menu.date = todayKey(); write(LS.menu, menu); }
+
+function renderMenu() {
+  ["lunch","dinner"].forEach(course => {
+    const ul = document.getElementById("list-" + course);
+    const items = menu[course] || [];
+    if (!items.length) {
+      ul.innerHTML = '<li style="border:none"><span class="mempty">Nothing on yet.</span></li>';
+      return;
+    }
+    ul.innerHTML = items.map((it,i) => {
+      const metaBits = [it.minutes ? it.minutes + " min" : "", it.note || ""].filter(Boolean).join(" · ");
+      return '<li><span class="mname">' + esc(it.name) +
+        (metaBits ? '<span class="mmeta">' + esc(metaBits) + '</span>' : '') +
+        '</span><button class="mrm" data-course="' + course + '" data-i="' + i +
+        '" aria-label="Remove ' + esc(it.name) + '">&times;</button></li>';
+    }).join("");
+  });
+  document.querySelectorAll(".mrm").forEach(b => {
+    b.onclick = () => { menu[b.dataset.course].splice(Number(b.dataset.i),1); renderMenu(); saveMenu(); };
+  });
+}
+
+function addToMenu(course, item) {
+  menu[course] = menu[course] || [];
+  menu[course].push(item);
+  renderMenu(); saveMenu();
+}
+
+["lunch","dinner"].forEach(course => {
+  const input = document.getElementById("add-" + course);
+  const btn = document.querySelector('.madd button[data-meal="' + course + '"]');
+  const commit = () => {
+    const v = input.value.trim();
+    if (!v) return;
+    addToMenu(course, { name: v });
+    input.value = ""; input.focus();
+  };
+  btn.onclick = commit;
+  input.addEventListener("keydown", e => { if (e.key === "Enter") commit(); });
+});
+
+document.getElementById("clearday").onclick = () => {
+  if (!menu.lunch.length && !menu.dinner.length) return;
+  menu = { date: todayKey(), lunch:[], dinner:[] };
+  renderMenu(); saveMenu();
+};
+
+/* ============================================================
+   offline matching against the library
+   ============================================================ */
+const normalise = s => String(s).toLowerCase().replace(/[^a-z\s,]/g," ");
+const STOP = new Set(["and","the","with","some","for","from","half","few","two","three","four",
+  "left","over","leftover","bit","bits","lot","lots","tin","tins","tinned","jar","packet","bag",
+  "fresh","frozen","dried","little","big","small","large","whole","about","plus","also","got","have"]);
+const tokens = s => normalise(s).split(/[,\s]+/)
+  .filter(w => w.length > 2 && !STOP.has(w))
+  .map(w => w.replace(/(ies)$/,"y").replace(/e?s$/,""));
+
+/* ============================================================
+   the Paprika book
+   ============================================================
+   Paprika stays the system of record. We keep a derived, disposable index of
+   what is already in it, purely so the model stops proposing dishes the cook
+   already owns. Re-import from Paprika rebuilds it in seconds, so losing this
+   costs nothing — which is why it lives under its own key and is written once
+   at import, never on the Keep path.
+
+   Deliberately no ingredient parsing. Matching only needs a haystack: it is
+   enough that "1.2kg bone-in chicken thighs" contains "chicken". Turning that
+   into clean tokens is a hard problem that buys nothing here. */
+
+/* Paprika's export container. UNVERIFIED against a real file — written to
+   cover every shape the format is plausibly in, so the first real export is a
+   test rather than a rewrite. Handles: gzipped JSON, a zip of gzipped entries,
+   and plain JSON. Safari has gzip and raw deflate natively, so no library and
+   no build step. */
+async function inflate(bytes, format) {
+  const s = new Blob([bytes]).stream().pipeThrough(new DecompressionStream(format));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+const isGzip = b => b.length > 2 && b[0] === 0x1f && b[1] === 0x8b;
+const isZip  = b => b.length > 4 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04;
+
+/* Minimal zip walk: local file headers only, stored and deflate. Enough for an
+   export archive; not a general-purpose unzip. */
+async function unzip(b) {
+  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  const out = [];
+  let i = 0;
+  while (i + 30 <= b.length && dv.getUint32(i, true) === 0x04034b50) {
+    const method = dv.getUint16(i + 8, true);
+    let size     = dv.getUint32(i + 18, true);
+    const nameLen = dv.getUint16(i + 26, true);
+    const extraLen = dv.getUint16(i + 28, true);
+    const start = i + 30 + nameLen + extraLen;
+    if (!size) break;                    // streamed entry, sizes live in the descriptor
+    const chunk = b.subarray(start, start + size);
+    out.push(method === 8 ? await inflate(chunk, "deflate-raw") : chunk);
+    i = start + size;
+  }
+  return out;
+}
+
+function harvest(value, into) {
+  if (Array.isArray(value)) { value.forEach(v => harvest(v, into)); return; }
+  if (!value || typeof value !== "object") return;
+  const title = value.name || value.title;
+  if (title) {
+    const cats = value.categories;
+    into.push({
+      title: String(title),
+      ingredients: String(value.ingredients || ""),
+      categories: Array.isArray(cats) ? cats.join(" ") : String(cats || "")
+    });
+  }
+}
+
+async function parsePaprika(file) {
+  let bytes = new Uint8Array(await file.arrayBuffer());
+  const found = [];
+  let parts = [bytes];
+  if (isZip(bytes)) parts = await unzip(bytes);
+
+  for (let part of parts) {
+    if (isGzip(part)) part = await inflate(part, "gzip");
+    const text = new TextDecoder().decode(part).trim();
+    if (!text) continue;
+    try { harvest(JSON.parse(text), found); }
+    catch (e) {
+      /* Some exports concatenate one JSON object per line. */
+      text.split(/\r?\n/).forEach(line => {
+        if (!line.trim()) return;
+        try { harvest(JSON.parse(line), found); } catch (e2) {}
+      });
+    }
+  }
+  return found;
+}
+
+let book = read(LS.book, null);
+if (!book || !Array.isArray(book.recipes)) book = { importedAt: 0, recipes: [] };
+
+/* entries: [{ title, ingredients, categories }] — whatever the parser yields. */
+function setBook(entries) {
+  const recipes = [];
+  const seen = new Set();
+  entries.forEach(e => {
+    const title = String((e && e.title) || "").trim();
+    if (!title) return;
+    const k = title.toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k);
+    recipes.push({
+      t: title,
+      h: normalise([title, e.categories || "", e.ingredients || ""].join(" "))
+    });
+  });
+  book = { importedAt: Date.now(), recipes };
+  write(LS.book, book);
+  paintStatus();
+  paintBook();
+  return recipes.length;
+}
+
+/* The dishes in their book that this fridge could actually produce. Scored on
+   how much of what they typed appears in the haystack, so typing chicken and
+   rice surfaces their chicken and rice dishes and nothing else. Capped: the
+   list rides in the prompt and 800 titles above the ingredients is exactly the
+   burial that made the model invent proteins. */
+function ownedNear(ing, cap) {
+  const want = [...new Set(tokens(ing))].filter(Boolean);
+  const N = book.recipes.length;
+  if (!want.length || !N) return [];
+
+  /* Words that turn up in a quarter of the book — oil, onion, stock — cannot
+     tell one dish from another, and left in they match everything and hand the
+     model its whole recipe book as "avoid these". Count first, then keep only
+     the words that actually discriminate. */
+  const limit = Math.max(2, N * 0.25);
+  const useful = want.filter(w => {
+    let df = 0;
+    for (const r of book.recipes) if (r.h.includes(w)) df++;
+    return df > 0 && df <= limit;
+  });
+  if (!useful.length) return [];
+
+  const hits = [];
+  book.recipes.forEach(r => {
+    let score = 0;
+    useful.forEach(w => { if (r.h.includes(w)) score++; });
+    if (score) hits.push({ t: r.t, score });
+  });
+  hits.sort((a, b) => b.score - a.score || a.t.length - b.t.length);
+  return hits.slice(0, cap || 40).map(h => h.t);
+}
+
+/* ============================================================
+   sending a ticket to Paprika
+   ============================================================
+   The inverse of the importer, and the same container: a zip whose entries are
+   gzipped recipe JSON. Entries are stored rather than deflated — the payload is
+   already gzip, so compressing it twice buys nothing and stored keeps the
+   writer short. Verified field names come from a real export. */
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+async function gzip(bytes) {
+  const s = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+
+/* entries: [{ name, bytes }] */
+function zipStore(entries) {
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+
+  entries.forEach(e => {
+    const name = enc.encode(e.name);
+    const crc = crc32(e.bytes), size = e.bytes.length;
+
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true);
+    lh.setUint16(4, 20, true);
+    lh.setUint16(6, 0x0800, true);     // names are UTF-8
+    lh.setUint16(8, 0, true);          // stored
+    lh.setUint32(14, crc, true);
+    lh.setUint32(18, size, true);
+    lh.setUint32(22, size, true);
+    lh.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(lh.buffer), name, e.bytes);
+
+    const cd = new DataView(new ArrayBuffer(46));
+    cd.setUint32(0, 0x02014b50, true);
+    cd.setUint16(4, 20, true);
+    cd.setUint16(6, 20, true);
+    cd.setUint16(8, 0x0800, true);
+    cd.setUint16(10, 0, true);
+    cd.setUint32(16, crc, true);
+    cd.setUint32(20, size, true);
+    cd.setUint32(24, size, true);
+    cd.setUint16(28, name.length, true);
+    cd.setUint32(42, offset, true);
+    central.push(new Uint8Array(cd.buffer), name);
+
+    offset += 30 + name.length + size;
+  });
+
+  const cdSize = central.reduce((n, b) => n + b.length, 0);
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true);
+  eocd.setUint16(8, entries.length, true);
+  eocd.setUint16(10, entries.length, true);
+  eocd.setUint32(12, cdSize, true);
+  eocd.setUint32(16, offset, true);
+
+  const all = [...parts, ...central, new Uint8Array(eocd.buffer)];
+  const out = new Uint8Array(all.reduce((n, b) => n + b.length, 0));
+  let at = 0;
+  all.forEach(b => { out.set(b, at); at += b.length; });
+  return out;
+}
+
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
+  : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+    })).toUpperCase();
+
+const stamp = d => d.getFullYear() + "-" +
+  String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + " " +
+  String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") + ":" +
+  String(d.getSeconds()).padStart(2, "0");
+
+/* A ticket is thinner than a Paprika recipe. Ingredients come from what they
+   had plus what they need to buy; directions prefer the full method if it has
+   been fetched, and fall back to the three steps. */
+function toPaprika(r, method) {
+  const ingredients = [...(r.uses || []), ...(r.needs || []).map(n => n + " (to buy)")].join("\n");
+  const directions = (method && method.trim())
+    ? method.trim()
+    : (r.steps || []).map((s, i) => (i + 1) + ". " + s).join("\n");
+  return {
+    uid: uuid(),
+    name: r.title,
+    ingredients,
+    directions,
+    description: "",
+    notes: r.note || "",
+    nutritional_info: "",
+    prep_time: "",
+    cook_time: r.minutes ? r.minutes + " min" : "",
+    total_time: r.minutes ? r.minutes + " min" : "",
+    servings: "",
+    difficulty: "",
+    rating: 0,
+    source: "PROvision",
+    source_url: "",
+    image_url: "",
+    photo: null,
+    photo_large: null,
+    photo_hash: null,
+    photos: [],
+    categories: [],
+    created: stamp(new Date())
+  };
+}
+
+async function paprikaFile(r, method) {
+  const recipe = toPaprika(r, method);
+  const safe = (recipe.name || "recipe").replace(/[\/:*?"<>|]/g, "-").slice(0, 80);
+  const inner = await gzip(new TextEncoder().encode(JSON.stringify(recipe)));
+  const zip = zipStore([{ name: safe + ".paprikarecipe", bytes: inner }]);
+  return new File([zip], safe + ".paprikarecipes", { type: "application/octet-stream" });
+}
+
+/* iOS hands this to Paprika through the share sheet. Share must happen inside
+   the tap's activation window, so the file is built first and shared straight
+   after; if the window has lapsed or sharing is unavailable, fall back to a
+   download the user can open into Paprika. */
+async function sendToPaprika(r, method) {
+  const file = await paprikaFile(r, method);
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: r.title });
+      return "Sent";
+    } catch (err) {
+      if (err && err.name === "AbortError") return "Cancelled";
+    }
+  }
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url; a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  return "Downloaded";
+}
+
+/* Backstop for the prompt: if a ticket shares no ingredient with what
+   was actually typed, it isn't a ticket for this fridge. */
+function onBrief(recipe, ing) {
+  const want = new Set(tokens(ing));
+  if (!want.size) return true;
+  const mine = tokens([recipe.title, (recipe.uses || []).join(" ")].join(" "));
+  return mine.some(w => {
+    for (const t of want) if (w.includes(t) || t.includes(w)) return true;
+    return false;
+  });
+}
+
+/* ============================================================
+   the model call
+   ============================================================ */
+let lastRaw = "";
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function ask(prompt, tokensOut, schema) {
+  if (!apiKey) throw new Error("NO KEY");
+  /* This model thinks by default and thinking bills against max_tokens. At the
+     old 1400 the reasoning ate the whole budget and the reply came back with no
+     text block at all — that was "No complete tickets in the reply", every time.
+     Keep effort low and leave real headroom. */
+  const payload = {
+    model: "claude-sonnet-5",
+    max_tokens: tokensOut || 8000,
+    thinking: { type: "adaptive" },
+    output_config: { effort: "low" },
+    messages: [{ role: "user", content: prompt }]
+  };
+  /* Structured output replaces the assistant prefill, which this model rejects
+     outright with a 400. Note the schema cannot carry minItems/maxItems — those
+     counts live in the prompt as prose. */
+  if (schema) payload.output_config.format = { type: "json_schema", schema };
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    throw new Error("REQUEST — " + (err.name || "Error") + ": " + err.message);
+  }
+
+  if (!res.ok) {
+    let detail = "";
+    try { detail = (await res.text()).slice(0,300); } catch (e) {}
+    throw new Error("API " + res.status + " — " + detail);
+  }
+
+  let body;
+  try { body = await res.text(); }
+  catch (err) { throw new Error("REPLY BODY — stream broke: " + err.message); }
+
+  let data;
+  try { data = JSON.parse(body); }
+  catch (err) { throw new Error("REPLY BODY — not JSON (" + body.length + " chars): " + body.slice(0,200)); }
+
+  if (!data || !Array.isArray(data.content)) throw new Error("REPLY SHAPE — " + JSON.stringify(data).slice(0,300));
+
+  const text = data.content.filter(c => c.type === "text").map(c => c.text).join("\n");
+  lastRaw = text;
+  /* No text block means the cap was spent before the answer started. Say so —
+     it used to arrive downstream disguised as a parse failure. */
+  if (!text.trim()) {
+    const u = data.usage || {}, d = u.output_tokens_details || {};
+    throw new Error("EMPTY REPLY — stop_reason " + data.stop_reason + ", " +
+      u.output_tokens + " output tokens of which " + (d.thinking_tokens || 0) +
+      " were thinking. Raise max_tokens.");
+  }
+  return text;
+}
+
+async function askRetry(prompt, tokensOut, onAttempt, schema) {
+  let last;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try { return await ask(prompt, tokensOut, schema); }
+    catch (err) {
+      last = err;
+      const retryable = /REPLY BODY|REQUEST|API 5\d\d|API 429/.test(err.message);
+      if (!retryable || attempt === 3) break;
+      if (onAttempt) onAttempt(attempt + 1);
+      await sleep(500 * attempt);
+    }
+  }
+  throw last;
+}
+
+function parseTickets(raw) {
+  const body = raw.replace(/```json|```/g, "").trim().replace(/^[^[{]*/, "");
+  try {
+    const end = body.lastIndexOf("]");
+    if (end > -1) return JSON.parse(body.slice(0, end + 1));
+  } catch (e) {}
+  const out = [];
+  let depth = 0, start = -1, inStr = false, escChar = false;
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (inStr) {
+      if (escChar) escChar = false;
+      else if (c === "\\") escChar = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === "{") { if (depth === 0) start = i; depth++; }
+    else if (c === "}") {
+      depth--;
+      if (depth === 0 && start > -1) {
+        try { out.push(JSON.parse(body.slice(start, i + 1))); } catch (e) {}
+        start = -1;
+      }
+    }
+  }
+  return out;
+}
+
+/* Structured output shape. Deliberately loose on counts: the API rejects
+   minItems > 1 and maxItems on arrays, so "exactly 3 steps" and "exactly 5
+   tickets" are stated in the prompt instead. */
+const TICKET_SCHEMA = {
+  type: "object", additionalProperties: false, required: ["tickets"],
+  properties: { tickets: { type: "array", items: {
+    type: "object", additionalProperties: false,
+    required: ["title","note","minutes","uses","needs","steps"],
+    properties: {
+      title:   { type: "string" },
+      note:    { type: "string" },
+      minutes: { type: "integer" },
+      uses:    { type: "array", items: { type: "string" } },
+      needs:   { type: "array", items: { type: "string" } },
+      steps:   { type: "array", items: { type: "string" } }
+    }
+  } } }
+};
+
+/* The schema makes a clean object the normal case; parseTickets stays as the
+   fallback so a truncated reply still yields whole tickets. */
+function readTickets(raw) {
+  try {
+    const v = JSON.parse(raw);
+    if (v && Array.isArray(v.tickets)) return v.tickets;
+    if (Array.isArray(v)) return v;
+  } catch (e) {}
+  return parseTickets(raw);
+}
+
+const ANGLES = {
+  crew: ["Tex-Mex","Thai","Italian-American","Indian","Greek","American diner",
+    "Filipino","South African braai flavours","British pub","Vietnamese","Sichuan",
+    "Lebanese","Caribbean","Portuguese","Korean","Mexican","Japanese home cooking",
+    "Spanish","Moroccan","Polish","Turkish","Cajun"],
+  guest: ["charring in a hot pan","acid and pickling","a pounded or blended paste as the base",
+    "a broth built from scraps","crisp texture against something soft","curing",
+    "a cold-set or chilled dish","toasting or blistering as the first move","fat rendered and used twice",
+    "a sauce that comes together off the heat","sweet meeting savoury","Levantine","Southeast Asian",
+    "Basque or Spanish","Japanese izakaya","West African","Oaxacan","Sichuan","Nordic restraint",
+    "trattoria","Persian","Portuguese","Korean"]
+};
+
+/* Role briefs are drawn fresh each run and shuffled, so the same fridge
+   doesn't produce the same five shapes in the same order every time.
+   These constrain how a dish eats, never what it is — naming
+   "one tray" is how you get a traybake every single fire. */
+const ROLES = {
+  crew: [
+    "A staple everyone knows, cooked properly",
+    "Eaten from a bowl with a spoon",
+    "In bread, a wrap, or between two things",
+    "Built on a starch that is not potato or pasta",
+    "On the table in twenty minutes flat",
+    "Uses whatever in the list is closest to turning",
+    "Better reheated tomorrow than it is tonight",
+    "One pan, least washing up possible",
+    "Served cold or barely warm",
+    "Vegetables carry it; any meat is seasoning",
+    "Eggs do the heavy lifting",
+    "A big shared platter people build themselves",
+    "Fried or crisped — texture is the whole point",
+    "Broth-led, something to drink as much as eat",
+    "Eaten with hands, no cutlery"
+  ],
+  guest: [
+    "The classic, restrained and correct",
+    "Technique-forward — one ingredient treated unusually",
+    "An unexpected pairing that sounds wrong and isn't",
+    "A light first course that sets the tone",
+    "Real visual impact on the plate",
+    "Raw, cured, or barely touched by heat",
+    "One perfect sauce, everything else in service of it",
+    "Built around a vegetable, not a protein",
+    "Hot against cold on the same plate",
+    "Arrives whole, carved or shared at the table",
+    "Acid-led and bright enough to wake the palate",
+    "Rich and small — three bites, no more"
+  ]
+};
+
+const shuffle = a => {
+  const out = a.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
+
+/* One angle per ticket rather than a single suggestion for the batch. */
+function buildBriefs(mode) {
+  const roles = shuffle(ROLES[mode]).slice(0, 5);
+  const angles = shuffle(ANGLES[mode]).slice(0, 5);
+  return roles.map((r, i) => `${i + 1}. ${r}. Lean this one toward ${angles[i]}.`).join("\n");
+}
+
+const GALLEY = `Galley equipment — this is a boat, so it is strict:
+Stovetop and a combi steam oven. That is all. No charcoal, no barbecue, no open flame, no smoker, no deep fryer, no outdoor cooking of any kind. Grilling means a grill pan on the stovetop, never a grill. Combi steam holds low temperatures well, so gentle low-temp and steamed cooking is fine. Assume the boat may be moving: nothing that needs a long, still, level surface.`;
+
+const BRIEFS = {
+  crew: `You are the crew chef on a working yacht, cooking for crew who have been on their feet since six and want a proper plate, not a concept.
+
+Crew food rules: familiar beats clever. Generous portions. Minimal washing up. No specialist equipment, no hard-to-source ingredients, nothing that needs tweezers or a blowtorch. No foams, gels, dusts, smears or anything "deconstructed". It should still be good if service runs late and people eat in shifts.
+
+`,
+
+  guest: `You are the chef on a yacht cooking for guests. This is the good service: current, refined, worth photographing — but it still has to leave a galley at sea, so nothing that needs a brigade or a week of prep.
+
+`
+};
+
+/* ============================================================
+   rendering
+   ============================================================ */
+function renderTickets(recipes, source, ctx) {
+  headEl.textContent = "Rail — " + recipes.length + (source === "library" ? " from the library" : " up");
+  outEl.innerHTML = '<div class="tickets">' + recipes.map((r,i) => `
+    <article class="ticket" style="animation-delay:${i*90}ms">
+      <div class="tnum">
+        <span>Ticket ${String(i+1).padStart(2,"0")}</span>
+        <span>${esc(r.minutes)} min</span>
+      </div>
+      <h2 class="tname">${esc(r.title)}</h2>
+      <p class="tnote">${esc(r.note || "")}</p>
+      <div class="tags">
+        ${(r.uses||[]).map(u => `<span class="tag">${esc(u)}</span>`).join("")}
+        ${(r.needs||[]).map(n => `<span class="tag need">buy ${esc(n)}</span>`).join("")}
+      </div>
+      <ol class="tsteps">${(r.steps||[]).map(s => `<li>${esc(s)}</li>`).join("")}</ol>
+      ${r.method ? `<div class="method">${esc(r.method)}</div>` : ""}
+      <div class="trow">
+        ${source === "online" && !r.method ? `<button class="more" data-i="${i}">Full method</button>` : ""}
+        ${source === "online" ? `<button class="topap" data-i="${i}">Send to Paprika</button>` : ""}
+        ${source === "online" ? `<button class="keep" data-i="${i}">Keep</button>` : ""}
+        <button class="add" data-course="lunch" data-i="${i}">+ Lunch</button>
+        <button class="add" data-course="dinner" data-i="${i}">+ Dinner</button>
+      </div>
+    </article>`).join("") + "</div>";
+
+  outEl.querySelectorAll(".add").forEach(btn => {
+    btn.onclick = () => {
+      const r = recipes[Number(btn.dataset.i)];
+      addToMenu(btn.dataset.course, { name: r.title, note: r.note, minutes: r.minutes });
+      btn.classList.add("done"); btn.textContent = "Added";
+      setTimeout(() => {
+        btn.classList.remove("done");
+        btn.textContent = "+ " + (btn.dataset.course === "lunch" ? "Lunch" : "Dinner");
+      }, 1400);
+    };
+  });
+
+  outEl.querySelectorAll(".topap").forEach(btn => {
+    btn.onclick = async () => {
+      const r = recipes[Number(btn.dataset.i)];
+      const methodEl = btn.closest(".ticket").querySelector(".method");
+      const was = btn.textContent;
+      btn.disabled = true; btn.textContent = "Packing…";
+      try {
+        btn.textContent = await sendToPaprika(r, methodEl ? methodEl.textContent : r.method);
+        btn.classList.add("done");
+      } catch (err) {
+        btn.textContent = "Failed — retry";
+        btn.disabled = false;
+        console.error("send to paprika:", err);
+        return;
+      }
+      setTimeout(() => {
+        btn.disabled = false; btn.textContent = was; btn.classList.remove("done");
+      }, 2500);
+    };
+  });
+
+  outEl.querySelectorAll(".keep").forEach(btn => {
+    btn.onclick = () => {
+      const r = recipes[Number(btn.dataset.i)];
+      const card = btn.closest(".ticket");
+      const methodEl = card.querySelector(".method");
+      const entry = {
+        title: r.title, note: r.note, minutes: r.minutes,
+        uses: r.uses || [], needs: r.needs || [], steps: r.steps || [],
+        method: methodEl ? methodEl.textContent : (r.method || ""),
+        service, meal: (ctx && ctx.meal ? ctx.meal.toLowerCase() : "both"),
+        tags: [...(ctx ? ctx.rules : [])]
+      };
+      if (library.some(x => x.title.toLowerCase() === entry.title.toLowerCase())) {
+        btn.textContent = "Already kept";
+      } else {
+        library.push(entry);
+        write(LS.lib, library);
+        paintStatus();
+        btn.textContent = "Kept";
+      }
+      btn.classList.add("done");
+    };
+  });
+
+  outEl.querySelectorAll(".more").forEach(btn => {
+    btn.onclick = async () => {
+      const r = recipes[Number(btn.dataset.i)];
+      const card = btn.closest(".ticket");
+      btn.disabled = true; btn.textContent = "Writing…";
+      try {
+        const method = await askRetry(
+`Write the full method for "${r.title}" using: ${ctx.ing}. ${ctx.rules_text}
+${GALLEY}
+${service === "crew"
+  ? "This is crew food — plain language, no cheffy flourishes, quantities that feed a hungry crew."
+  : "This is guest service — precise quantities and timings, but achievable in a galley."}
+Plain text only, no markdown. Start with a one-line ingredient list with quantities, then numbered steps. Under 200 words.`, 4000);
+        const d = document.createElement("div");
+        d.className = "method"; d.textContent = method.trim();
+        card.insertBefore(d, card.querySelector(".trow"));
+        btn.remove();
+      } catch (e) {
+        btn.disabled = false; btn.textContent = "Try again";
+      }
+    };
+  });
+}
+
+/* ============================================================
+   fire
+   ============================================================ */
+async function fire() {
+  const ing = ingEl.value.trim();
+  if (!ing) { ingEl.focus(); return; }
+
+  if (!navigator.onLine || !apiKey) {
+    headEl.textContent = "Rail — empty";
+    outEl.innerHTML = '<div class="state">' +
+      (navigator.onLine ? "No API key set. Add one in Settings." : "No signal. Tickets need the network.") +
+      '</div>';
+    return;
+  }
+
+  fireEl.disabled = true;
+  fireEl.textContent = "Firing…";
+  headEl.textContent = "Rail — printing";
+  outEl.innerHTML = '<div class="state"><span class="feed">▌</span> Printing five tickets…</div>';
+
+  const mealLine = meal ? `These are ${meal.toLowerCase()} dishes — pitch the weight and formality accordingly.` : "";
+  const rules_text = (mealLine + " " + (picked.size ? "Constraints: " + [...picked].join("; ") + "." : "")).trim();
+  const briefs = buildBriefs(service);
+  const recent = read(LS.recent, []);
+  /* Two kinds of "they already have this": what is in their Paprika book, and
+     what this app handed them lately. Same instruction, different provenance,
+     so they read as one rule the model can act on. */
+  const owned = ownedNear(ing, 40);
+  const avoid = [];
+  if (owned.length) {
+    avoid.push(`Already in this cook's recipe book. They own these and do not need them again. Do not return any of them, and do not return the same dish under a different name — a renamed near-variant is the same wasted ticket:
+${owned.join(", ")}.`);
+  }
+  if (recent.length) {
+    avoid.push(`Also handed to them recently, same rule:
+${recent.slice(0, 30).join(", ")}.`);
+  }
+  const banned = avoid.length ? "\n" + avoid.join("\n\n") + "\n" : "";
+
+  const prompt = `${BRIEFS[service]}
+
+WHAT THEY HAVE — this is the whole point of the exercise:
+${ing}
+
+Every one of the five dishes is built on that list. This is the hard rule and it beats everything below it.
+- Anything not on the list may appear only as pantry seasoning: oil, salt, spice, vinegar, stock, flour, sugar. Never as the protein, never as the centre of a dish.
+- If they listed a protein, every dish that has a protein uses one of theirs. Do not introduce beef because a brief suggested a stew, or fish because one suggested something light.
+- If a brief below cannot be done with what they have, bend the brief. The brief is a shape to aim at. Their ingredients are not negotiable.
+- "needs" is for a small pantry item they might be missing. It is never a protein and never the main event.
+
+${rules_text}
+${GALLEY}
+${banned}
+Give exactly 5 dishes, one for each brief below, in this order.
+
+${briefs}
+
+No two of the five may share a primary format. If one is a stew, none of the others is. Same for anything built on pasta, rice, bread, or a tray of roasted things.
+
+Specific over safe. A note that says "a comforting classic" is a wasted ticket — say what actually makes it work.
+
+Field limits, all strict:
+- title: max 5 words.
+- note: max 14 words. The specific reason it works, not a mood.
+- minutes: a number.
+- uses: max 3, words taken from their list.
+- needs: max 2 small pantry items, [] if none.
+- steps: exactly 3, max 12 words each.
+Return exactly 5 tickets.`;
+
+  let stage = "asking";
+  try {
+    lastRaw = "";
+    const raw = await askRetry(prompt, 8000, n => {
+      outEl.innerHTML = '<div class="state"><span class="feed">▌</span> Printer jammed — attempt ' + n + ' of 3…</div>';
+    }, TICKET_SCHEMA);
+    stage = "reading the tickets";
+    const all = readTickets(raw);
+    if (!all.length) throw new Error("No complete tickets in the reply.");
+    const recipes = all.filter(r => onBrief(r, ing));
+    if (!recipes.length) throw new Error("Nothing came back that used your ingredients.");
+    const dropped = all.length - recipes.length;
+
+    stage = "printing";
+    const seen = read(LS.recent, []);
+    write(LS.recent, [...recipes.map(r => r.title), ...seen].slice(0, 40));
+    renderTickets(recipes, "online", { ing, rules_text, meal, rules: picked });
+    if (dropped) {
+      headEl.textContent = "Rail — " + recipes.length + " up (" + dropped + " ignored your list)";
+    }
+  } catch (e) {
+    const why = (e.name || "Error") + ": " + e.message;
+    headEl.textContent = "Rail — empty";
+    outEl.innerHTML =
+      '<div class="state err">Couldn\'t reach Claude.<br>' + esc(why) +
+      (lastRaw ? '<details style="margin-top:12px;text-align:left"><summary style="cursor:pointer">What came back</summary>' +
+        '<pre style="white-space:pre-wrap;font-size:11px;margin-top:8px">' + esc(lastRaw.slice(0,800)) + '</pre></details>' : '') +
+      '</div>';
+  } finally {
+    fireEl.disabled = false;
+    fireEl.textContent = "Fire five tickets";
+  }
+}
+
+fireEl.onclick = fire;
+ingEl.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") fire(); });
+
+renderMenu();
+paintStatus();
+paintBook();
+if (!apiKey) panel.classList.add("open");
+
+if ("serviceWorker" in navigator) {
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
