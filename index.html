@@ -253,6 +253,10 @@
     <input type="file" id="bookfile" accept=".paprikarecipes,.paprikarecipe" style="display:none">
     <p class="note" id="booknote"></p>
 
+    <p style="margin-top:22px"><strong>Paprika share test (temporary)</strong> — tap each and note which one lists Paprika in the share sheet.</p>
+    <div class="prow" id="mimetest"></div>
+    <p class="note" id="mimenote"></p>
+
     <p style="margin-top:22px">Your library lives on this device. Export it now and then so a lost phone doesn't take it with you.</p>
     <div class="prow">
       <button class="btn" id="export">Export library</button>
@@ -376,6 +380,39 @@ document.getElementById("clearkey").onclick = () => {
   pnote.textContent = "Key removed. The library still works offline.";
   paintStatus();
 };
+
+/* TEMPORARY. iOS picks the receiving app from the item's type, and
+   application/octet-stream resolves to generic data before the
+   .paprikarecipes extension is ever consulted. These four cover the plausible
+   answers in one sitting; delete this block and keep the winner. */
+const MIME_TRIALS = [
+  ["no type", ""],
+  ["zip", "application/zip"],
+  ["x-paprika", "application/x-paprika-recipes"],
+  ["octet", "application/octet-stream"]
+];
+const SAMPLE = {
+  title: "Share Test Lamb", note: "Delete this once the share sheet behaves.",
+  minutes: 20, uses: ["lamb", "yoghurt"], needs: [],
+  steps: ["Sear the lamb", "Rest it", "Serve with yoghurt"]
+};
+const mimeNote = document.getElementById("mimenote");
+MIME_TRIALS.forEach(([label, mime]) => {
+  const b = document.createElement("button");
+  b.className = "btn"; b.textContent = label;
+  b.onclick = async () => {
+    mimeNote.textContent = "Building " + label + "…";
+    try {
+      const f = await paprikaFile(SAMPLE, null, mime);
+      const can = !!(navigator.canShare && navigator.canShare({ files: [f] }));
+      mimeNote.textContent = label + ' (type "' + (f.type || "none") + '") canShare=' + can;
+      if (can) await navigator.share({ files: [f], title: SAMPLE.title });
+    } catch (err) {
+      mimeNote.textContent = label + " failed: " + err.name + " " + err.message;
+    }
+  };
+  document.getElementById("mimetest").appendChild(b);
+});
 
 const bookNote = document.getElementById("booknote");
 const bookFile = document.getElementById("bookfile");
@@ -841,12 +878,17 @@ function toPaprika(r, method) {
   };
 }
 
-async function paprikaFile(r, method) {
+const PAPRIKA_MIME = "application/octet-stream";
+
+async function paprikaFile(r, method, mime) {
   const recipe = toPaprika(r, method);
-  const safe = (recipe.name || "recipe").replace(/[\/:*?"<>|]/g, "-").slice(0, 80);
+  const safe = (recipe.name || "recipe").replace(/[\/:*?"<>|&]/g, "-").slice(0, 80).trim();
   const inner = await gzip(new TextEncoder().encode(JSON.stringify(recipe)));
   const zip = zipStore([{ name: safe + ".paprikarecipe", bytes: inner }]);
-  return new File([zip], safe + ".paprikarecipes", { type: "application/octet-stream" });
+  const opts = {};
+  const t = mime === undefined ? PAPRIKA_MIME : mime;
+  if (t) opts.type = t;                 // omitted entirely when empty
+  return new File([zip], safe + ".paprikarecipes", opts);
 }
 
 /* iOS hands this to Paprika through the share sheet. Share must happen inside
@@ -854,7 +896,7 @@ async function paprikaFile(r, method) {
    after; if the window has lapsed or sharing is unavailable, fall back to a
    download the user can open into Paprika. */
 async function sendToPaprika(r, method) {
-  const file = await paprikaFile(r, method);
+  const file = await paprikaFile(r, method, PAPRIKA_MIME);
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: r.title });
