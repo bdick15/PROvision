@@ -941,12 +941,18 @@ async function ask(prompt, tokensOut, schema) {
   /* This model thinks by default and thinking bills against max_tokens. At the
      old 1400 the reasoning ate the whole budget and the reply came back with no
      text block at all — that was "No complete tickets in the reply", every time.
-     Keep effort low and leave real headroom. */
+     Leave real headroom.
+
+     Deciding whether lamb, yoghurt and stale sourdough want to be one dish or
+     three is entirely judgment, so this runs on the more capable model at high
+     effort. It was briefly on Sonnet at effort low — that was chosen to stop
+     the budget blowing out, not for the cooking, and low effort is meant for
+     classification and subagents, not for this. */
   const payload = {
-    model: "claude-sonnet-5",
-    max_tokens: tokensOut || 8000,
+    model: "claude-opus-5",
+    max_tokens: tokensOut || 16000,
     thinking: { type: "adaptive" },
-    output_config: { effort: "low" },
+    output_config: { effort: "high" },
     messages: [{ role: "user", content: prompt }]
   };
   /* Structured output replaces the assistant prefill, which this model rejects
@@ -1261,7 +1267,7 @@ ${GALLEY}
 ${service === "crew"
   ? "This is crew food — plain language, no cheffy flourishes, quantities that feed a hungry crew."
   : "This is guest service — precise quantities and timings, but achievable in a galley."}
-Plain text only, no markdown. Start with a one-line ingredient list with quantities, then numbered steps. Under 200 words.`, 4000);
+Plain text only, no markdown. Start with a one-line ingredient list with quantities, then numbered steps. Under 200 words.`, 8000);
         const d = document.createElement("div");
         d.className = "method"; d.textContent = method.trim();
         card.insertBefore(d, card.querySelector(".trow"));
@@ -1348,7 +1354,7 @@ Return exactly 5 tickets.`;
   let stage = "asking";
   try {
     lastRaw = "";
-    const raw = await askRetry(prompt, 8000, n => {
+    const raw = await askRetry(prompt, 16000, n => {
       outEl.innerHTML = '<div class="state"><span class="feed">▌</span> Printer jammed — attempt ' + n + ' of 3…</div>';
     }, TICKET_SCHEMA);
     stage = "reading the tickets";

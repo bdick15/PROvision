@@ -42,6 +42,15 @@ bug:
   the cap generous — 8000 for tickets, 4000 for the full method. Real
   spend is ~1000–2200 output tokens, of which up to ~1400 is thinking.
 
+**Model and effort are quality settings, not cost settings.** Runs on
+`claude-opus-5` at `effort: "high"`. It spent a short period on
+`claude-sonnet-5` at `effort: "low"` — that pairing was chosen while fixing
+the token starvation above, to stop the budget blowing out, and it is the
+wrong shape for this job: deciding what a fridge full of odds and ends
+wants to become is entirely judgment, and low effort is meant for
+classification and subagents. If the tickets ever start reading generic,
+check these two before touching the prompt.
+
 `output_config.format` carries `TICKET_SCHEMA`, so the reply is a JSON
 object rather than prose to be scraped. The schema cannot express counts
 — the API rejects `maxItems`, and `minItems` above 1, on arrays — so
