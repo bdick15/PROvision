@@ -253,10 +253,6 @@
     <input type="file" id="bookfile" accept=".paprikarecipes,.paprikarecipe" style="display:none">
     <p class="note" id="booknote"></p>
 
-    <p style="margin-top:22px"><strong>Share A/B (temporary)</strong> — this shares the same sample that worked before. If Paprika appears here but not from a ticket, the difference is the ticket's title or contents.</p>
-    <div class="prow"><button class="btn" id="sharesample">Share sample recipe</button></div>
-    <p class="note" id="samplenote"></p>
-
     <p style="margin-top:22px">Your library lives on this device. Export it now and then so a lost phone doesn't take it with you.</p>
     <div class="prow">
       <button class="btn" id="export">Export library</button>
@@ -379,22 +375,6 @@ document.getElementById("clearkey").onclick = () => {
   document.getElementById("keyin").value = "";
   pnote.textContent = "Key removed. The library still works offline.";
   paintStatus();
-};
-
-/* TEMPORARY A/B. Same sample, same build, so a difference points at the
-   ticket rather than the code. */
-document.getElementById("sharesample").onclick = async () => {
-  const note = document.getElementById("samplenote");
-  try {
-    const out = await sendToPaprika({
-      title: "Share Test Lamb", note: "Delete this once sharing behaves.",
-      minutes: 20, uses: ["lamb", "yoghurt"], needs: [],
-      steps: ["Sear the lamb", "Rest it", "Serve with yoghurt"]
-    }, null);
-    note.textContent = out + " — " + lastShare;
-  } catch (err) {
-    note.textContent = err.name + ": " + err.message + " — " + lastShare;
-  }
 };
 
 const bookNote = document.getElementById("booknote");
@@ -879,25 +859,35 @@ async function paprikaFile(r, method) {
    download the user can open into Paprika. */
 let lastShare = "";
 
-async function sendToPaprika(r, method) {
-  const file = await paprikaFile(r, method);
-  const can = !!(navigator.canShare && navigator.canShare({ files: [file] }));
-  lastShare = 'name "' + file.name + '" · ' + file.size + " B · type " +
-    (file.type ? '"' + file.type + '"' : "(none)") + " · canShare " + can;
-  if (can) {
-    try {
-      await navigator.share({ files: [file], title: r.title });
-      return "Sent";
-    } catch (err) {
-      if (err && err.name === "AbortError") return "Cancelled";
-    }
-  }
+function saveFile(file) {
   const url = URL.createObjectURL(file);
   const a = document.createElement("a");
   a.href = url; a.download = file.name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
-  return "Downloaded";
+}
+
+/* mode "save" writes straight to Files and skips the share sheet; anything
+   else opens the sheet. Sharing has never routed to Paprika on iOS — Safari
+   hands the file over as generic data, and Paprika claims the
+   .paprikarecipes extension, which survives on disk but not through the
+   sheet. Saving is the route that actually imports. */
+async function sendToPaprika(r, method, mode) {
+  const file = await paprikaFile(r, method);
+  const can = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+  lastShare = 'name "' + file.name + '" · ' + file.size + " B · type " +
+    (file.type ? '"' + file.type + '"' : "(none)") + " · canShare " + can;
+
+  if (mode !== "save" && can) {
+    try {
+      await navigator.share({ files: [file], title: r.title });
+      return "Shared";
+    } catch (err) {
+      if (err && err.name === "AbortError") return "Cancelled";
+    }
+  }
+  saveFile(file);
+  return "Saved";
 }
 
 /* Backstop for the prompt: if a ticket shares no ingredient with what
@@ -1157,7 +1147,8 @@ function renderTickets(recipes, source, ctx) {
       ${r.method ? `<div class="method">${esc(r.method)}</div>` : ""}
       <div class="trow">
         ${source === "online" && !r.method ? `<button class="more" data-i="${i}">Full method</button>` : ""}
-        ${source === "online" ? `<button class="topap" data-i="${i}">Send to Paprika</button>` : ""}
+        ${source === "online" ? `<button class="topap" data-i="${i}" data-mode="save">Save for Paprika</button>` : ""}
+        ${source === "online" ? `<button class="topap" data-i="${i}" data-mode="share">Share…</button>` : ""}
         ${source === "online" ? `<button class="keep" data-i="${i}">Keep</button>` : ""}
         <button class="add" data-course="lunch" data-i="${i}">+ Lunch</button>
         <button class="add" data-course="dinner" data-i="${i}">+ Dinner</button>
@@ -1183,7 +1174,7 @@ function renderTickets(recipes, source, ctx) {
       const was = btn.textContent;
       btn.disabled = true; btn.textContent = "Packing…";
       try {
-        btn.textContent = await sendToPaprika(r, methodEl ? methodEl.textContent : r.method);
+        btn.textContent = await sendToPaprika(r, methodEl ? methodEl.textContent : r.method, btn.dataset.mode);
         btn.classList.add("done");
         const card = btn.closest(".ticket");
         let dbg = card.querySelector(".sharedbg");
