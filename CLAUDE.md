@@ -145,10 +145,18 @@ in more than a quarter of the book first — without that, *carrots* and
 
 **Sending back**: `zipStore()` writes the same container Paprika exports —
 a zip of gzipped recipe JSON, entries stored rather than deflated since the
-payload is already compressed. Verified against Python's `zipfile`; the
-field set matches a real export except `hash` and `photo_data`. Delivery is
-`navigator.share({files})`, which must happen inside the tap's activation
-window, with a download fallback.
+payload is already compressed. Verified against Python's `zipfile` and
+confirmed on device: Paprika imports it, so the missing `hash` and
+`photo_data` fields do not matter.
+
+**Do not give the shared File a MIME type.** Tested on iOS across four
+types: with any type set — `application/octet-stream` included — Paprika
+does not appear in the share sheet at all, because iOS resolves the
+receiving app from the item's type and stops there. Omit the type and it
+falls back to the `.paprikarecipes` extension, which Paprika claims, and it
+imports in one tap. Delivery is `navigator.share({files})` and must happen
+inside the tap's activation window, with a download fallback for anywhere
+sharing is unavailable.
 
 ## Things that will bite
 
