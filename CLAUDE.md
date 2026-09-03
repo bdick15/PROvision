@@ -277,10 +277,15 @@ quantities once the full method is fetched.
 ## Things that will bite
 
 - **Bump `CACHE` in sw.js AND `VERSION` in index.html on every deploy**,
-  to the same number (`v21` → `v22`). VERSION shows as a pill in the header,
-  so a stale service worker is visible rather than guessed at.
-  Without it phones serve the old cached copy. Then open the app twice —
-  first launch fetches, second shows.
+  to the same number (`v22` → `v23`). VERSION shows as a pill in the header;
+  they drift apart the moment one is bumped without the other, and then the
+  pill lies about which build is running.
+- **The service worker is network first**, cache only as fallback, with a 4s
+  timeout. It was cache-first with a background refresh, which meant every
+  deploy needed the app opened twice — and the home screen app keeps its own
+  registration separate from Safari, so it could sit a version behind for
+  days while Safari showed the new one. Don't switch it back for
+  offline-first reasons: there is no offline mode, the boat has Starlink.
 - `anthropic-dangerous-direct-browser-access: true` is required or the
   request fails CORS. Don't remove it.
 - The catch in `fire()` falls back to the library. It now prints the real
