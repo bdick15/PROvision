@@ -298,7 +298,7 @@
    ============================================================ */
 /* Bump this together with CACHE in sw.js — same number, every deploy. On
    screen so a stale service worker is visible instead of guessed at. */
-const VERSION = "v22";
+const VERSION = "v23";
 
 const LS = {
   key:    "provision:key",
@@ -1664,7 +1664,29 @@ paintTaste();
 if (!apiKey) panel.classList.add("open");
 
 if ("serviceWorker" in navigator) {
-  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  /* updateViaCache "none" matters more than it looks. Pages serves sw.js with
+     max-age=600, and without this the browser will happily reuse a cached copy
+     of the worker script — so a deploy can be live on the server while the home
+     screen app keeps running the old worker, which then keeps serving the old
+     page. That is exactly how v21 shipped and never arrived.
+
+     controllerchange fires when a new worker takes over; reload once so the new
+     build is what you are looking at, rather than the old one until next
+     launch. Skipped on first registration, when there was no controller to
+     change from, and guarded so it cannot loop. */
+  addEventListener("load", async () => {
+    try {
+      const had = !!navigator.serviceWorker.controller;
+      let reloading = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!had || reloading) return;
+        reloading = true;
+        location.reload();
+      });
+      const reg = await navigator.serviceWorker.register("sw.js", { updateViaCache: "none" });
+      reg.update();
+    } catch (e) {}
+  });
 }
 </script>
 </body>
