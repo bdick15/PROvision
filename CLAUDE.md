@@ -177,6 +177,23 @@ person, bone-in)" stays whole. Both send buttons are hidden until the full
 method has been fetched, because before that there is nothing worth
 sending.
 
+## Taste
+
+Ratings live in `provision:taste` as `{liked, disliked}`, each capped at 30,
+newest first. Each entry keeps the title **and the one-line note** — the note
+is where a dish's character actually sits, so "thighs crisped hard, lemon
+squeezed over hot" tells the model far more than the title alone.
+
+**A dislike steers, it does not ban.** The prompt says so explicitly: lean
+away from that style, but a disliked dish may still appear if it genuinely
+fits the fridge and its brief. That is the cook's own definition and it is
+deliberate — the avoid-list is a separate mechanism and already handles
+"never this again".
+
+The taste block is distinct from `banned` (recent titles) and from the
+Paprika book. Three different jobs: don't repeat yourself, don't hand them
+what they own, and cook the way they like.
+
 ## Things that will bite
 
 - **Bump `CACHE` in sw.js on every deploy** (`provision-v7` → `v8`).

@@ -143,15 +143,17 @@
     white-space:pre-wrap;color:#38332C;
   }
   .trow{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;}
-  .more,.keep,.topap{
+  .more,.keep,.topap,.rate{
     cursor:pointer;padding:9px 11px;border-radius:2px;background:transparent;
     border:1px dashed #B9B3A5;color:#6B655A;font-family:"IBM Plex Mono",monospace;
     font-size:11px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
   }
   .keep,.topap{border-style:solid;}
+  .rate.on{background:var(--chive);border-color:var(--chive);color:#141A0E;}
+  .rate.off{background:var(--alarm);border-color:var(--alarm);color:#fff;}
   .trow button[hidden]{display:none;}
   .more{flex:1;min-width:110px;}
-  .more:hover,.keep:hover{border-color:var(--ink);color:var(--ink);}
+  .more:hover,.keep:hover,.rate:hover{border-color:var(--ink);color:var(--ink);}
   .keep.done{background:var(--chive);border-color:var(--chive);color:#141A0E;}
   .src{
     display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10px;
@@ -199,6 +201,7 @@
     <div class="statusrow">
       <span class="pill" id="netpill">checking</span>
       <span class="pill" id="libpill">library 0</span>
+      <span class="pill" id="ratepill">taste —</span>
       <button class="pill tap" id="gear" type="button">Settings</button>
     </div>
   </header>
@@ -218,6 +221,10 @@
     </div>
     <input type="file" id="bookfile" accept=".paprikarecipes,.paprikarecipe" style="display:none">
     <p class="note" id="booknote"></p>
+
+    <p style="margin-top:22px">Ratings steer future tickets — liked dishes pull the batch toward them, disliked ones push it away without banning anything.</p>
+    <div class="prow"><button class="btn danger" id="clearTaste">Forget ratings</button></div>
+    <p class="note" id="tastenote"></p>
 
     <p style="margin-top:22px">Your library lives on this device. Export it now and then so a lost phone doesn't take it with you.</p>
     <div class="prow">
@@ -272,7 +279,8 @@ const LS = {
   key:    "provision:key",
   lib:    "provision:library",
   recent: "provision:recent",
-  book:   "provision:paprika"
+  book:   "provision:paprika",
+  taste:  "provision:taste"
 };
 const read = (k, fallback) => {
   try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; }
@@ -289,6 +297,33 @@ try { apiKey = localStorage.getItem(LS.key) || ""; } catch (e) {}
 let library = read(LS.lib, []);
 if (!Array.isArray(library)) library = [];
 
+/* What the cook made of previous tickets. Title plus the one-line note, which
+   is where the character of a dish actually lives — "thighs stay juicy while
+   the potatoes take the fat" says more about taste than the title does. */
+let taste = read(LS.taste, null);
+if (!taste || !Array.isArray(taste.liked) || !Array.isArray(taste.disliked)) {
+  taste = { liked: [], disliked: [] };
+}
+
+function rate(r, verdict) {
+  const key = String(r.title || "").toLowerCase();
+  const entry = { t: r.title, n: r.note || "" };
+  ["liked", "disliked"].forEach(k => {
+    taste[k] = taste[k].filter(x => String(x.t).toLowerCase() !== key);
+  });
+  if (verdict) taste[verdict] = [entry, ...taste[verdict]].slice(0, 30);
+  write(LS.taste, taste);
+  paintStatus();
+  return verdict;
+}
+
+const verdictOf = title => {
+  const k = String(title || "").toLowerCase();
+  if (taste.liked.some(x => String(x.t).toLowerCase() === k)) return "liked";
+  if (taste.disliked.some(x => String(x.t).toLowerCase() === k)) return "disliked";
+  return null;
+};
+
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
 
 /* ============================================================
@@ -296,6 +331,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">"
    ============================================================ */
 const netPill = document.getElementById("netpill");
 const libPill = document.getElementById("libpill");
+const ratePill = document.getElementById("ratepill");
 const panel   = document.getElementById("panel");
 const pnote   = document.getElementById("panelnote");
 
@@ -303,6 +339,8 @@ function paintStatus() {
   const online = navigator.onLine;
   netPill.textContent = online ? (apiKey ? "online" : "no key") : "offline";
   netPill.className = "pill " + (online && apiKey ? "on" : "off");
+  const rated = taste.liked.length + taste.disliked.length;
+  ratePill.textContent = rated ? "taste " + taste.liked.length + "/" + taste.disliked.length : "taste —";
   libPill.textContent = book.recipes.length
     ? "book " + book.recipes.length
     : "kept " + library.length;
@@ -340,6 +378,18 @@ function paintBook() {
     ? book.recipes.length + " recipes known, imported " + new Date(book.importedAt).toLocaleDateString()
     : "No Paprika book imported yet.";
 }
+
+function paintTaste() {
+  const n = document.getElementById("tastenote");
+  n.textContent = (taste.liked.length + taste.disliked.length)
+    ? taste.liked.length + " liked, " + taste.disliked.length + " not."
+    : "Nothing rated yet.";
+}
+document.getElementById("clearTaste").onclick = () => {
+  taste = { liked: [], disliked: [] };
+  write(LS.taste, taste);
+  paintStatus(); paintTaste();
+};
 
 document.getElementById("bookbtn").onclick = () => bookFile.click();
 document.getElementById("bookclear").onclick = () => {
@@ -1173,8 +1223,25 @@ function renderTickets(recipes, source, ctx) {
         ${source === "online" ? `<button class="topap" data-i="${i}" data-mode="save" ${r.method ? "" : "hidden"}>Save for Paprika</button>` : ""}
         ${source === "online" ? `<button class="topap" data-i="${i}" data-mode="share" ${r.method ? "" : "hidden"}>Share…</button>` : ""}
         ${source === "online" ? `<button class="keep" data-i="${i}">Keep</button>` : ""}
+        <button class="rate ${verdictOf(r.title) === "liked" ? "on" : ""}" data-i="${i}" data-v="liked">More like this</button>
+        <button class="rate ${verdictOf(r.title) === "disliked" ? "off" : ""}" data-i="${i}" data-v="disliked">Less like this</button>
       </div>
     </article>`).join("") + "</div>";
+
+  outEl.querySelectorAll(".rate").forEach(btn => {
+    btn.onclick = () => {
+      const r = recipes[Number(btn.dataset.i)];
+      const want = btn.dataset.v;
+      /* Tapping the verdict it already has clears it. */
+      const next = verdictOf(r.title) === want ? null : want;
+      rate(r, next);
+      btn.closest(".trow").querySelectorAll(".rate").forEach(o => {
+        const v = verdictOf(r.title);
+        o.classList.toggle("on",  o.dataset.v === "liked"    && v === "liked");
+        o.classList.toggle("off", o.dataset.v === "disliked" && v === "disliked");
+      });
+    };
+  });
 
   outEl.querySelectorAll(".topap").forEach(btn => {
     btn.onclick = async () => {
@@ -1315,6 +1382,17 @@ ${recent.slice(0, 30).join(", ")}.`);
   }
   const banned = avoid.length ? "\n" + avoid.join("\n\n") + "\n" : "";
 
+  /* Taste, as distinct from the avoid list. A dislike steers, it does not ban
+     — the cook was explicit that it means less like this in general, not never
+     this dish again. */
+  const say = xs => xs.slice(0, 15).map(x => x.n ? `${x.t} — ${x.n}` : x.t).join("\n");
+  const taste_lines = [];
+  if (taste.liked.length) taste_lines.push("Dishes this cook liked:\n" + say(taste.liked));
+  if (taste.disliked.length) taste_lines.push("Dishes this cook did not like:\n" + say(taste.disliked));
+  const taste_text = taste_lines.length
+    ? `\nWHAT THIS COOK LIKES — the strongest signal you have about their taste, so weight the whole batch toward it.\n\n${taste_lines.join("\n\n")}\n\nRead those for what they have in common: the kind of cooking, how much work it is, how bold the seasoning, whether it is comfort or restraint. Pull all ${TICKETS} toward the liked end of that. A disliked dish is not banned — if one genuinely fits this fridge and its brief it may still appear — but lean away from that style rather than toward it.\n`
+    : "";
+
   const prompt = `${BRIEFS[service]}
 
 WHAT THEY HAVE — this is the whole point of the exercise:
@@ -1328,6 +1406,7 @@ Every one of the ${TICKETS} dishes is built on that list. This is the hard rule 
 
 ${rules_text}
 ${extra_text}
+${taste_text}
 ${GALLEY}
 ${banned}
 Give exactly ${TICKETS} dishes, one for each brief below, in this order.
@@ -1386,6 +1465,7 @@ ingEl.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key =
 
 paintStatus();
 paintBook();
+paintTaste();
 if (!apiKey) panel.classList.add("open");
 
 if ("serviceWorker" in navigator) {
