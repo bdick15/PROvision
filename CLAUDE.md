@@ -194,6 +194,28 @@ The taste block is distinct from `banned` (recent titles) and from the
 Paprika book. Three different jobs: don't repeat yourself, don't hand them
 what they own, and cook the way they like.
 
+## Recipe creator
+
+A second view in the same file, not a second page — it reuses `ask()`,
+`toPaprika()` and the galley brief, and duplicating those to keep the pages
+apart would be the worse trade. "Write it" composes one; "Find one online"
+searches and returns a real published recipe with its URL, attributed to the
+site it came from.
+
+**Web search and structured output do compose**, despite the documented
+warning that citations and `output_config.format` are incompatible. Tested
+against the live API: `end_turn`, real URLs, schema-valid JSON in one
+request. No backend and no second key — the tool runs on Anthropic's
+servers.
+
+**Searches are the expensive part.** Results land in the request as input
+tokens: five searches came to 91k tokens, about 58c a go. `max_uses` is 3.
+Raise it only with a reason.
+
+A created recipe arrives whole — real quantities in `ingredients` — so
+`toPaprika()` branches on that and skips the ticket path, which only gets
+quantities once the full method is fetched.
+
 ## Things that will bite
 
 - **Bump `CACHE` in sw.js on every deploy** (`provision-v7` → `v8`).

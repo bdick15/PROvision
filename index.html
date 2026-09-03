@@ -89,6 +89,10 @@
   .chip.meal[aria-pressed="true"]{background:var(--lamp);border-color:var(--lamp);color:#1B1200;}
   .chipsep{width:1px;align-self:stretch;background:var(--steel-500);margin:2px 5px;}
   .rules{margin-top:18px;padding-top:16px;border-top:1px dashed var(--steel-700);}
+  .views{display:flex;gap:7px;margin-bottom:18px;}
+  .chip.view.on{background:var(--lamp);border-color:var(--lamp);color:#241703;}
+  .fire.ghost{background:transparent;border:1px solid var(--lamp);color:var(--lamp);}
+  .fire.ghost:hover:not(:disabled){background:rgba(255,176,32,.12);}
   .fire{
     margin-top:20px;width:100%;padding:16px;cursor:pointer;background:var(--lamp);color:#1B1200;
     border:none;border-radius:2px;font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;
@@ -235,7 +239,26 @@
     <p class="note" id="panelnote"></p>
   </section>
 
-  <section class="order">
+  <nav class="views">
+    <button class="chip view on" data-view="pass" type="button">The pass</button>
+    <button class="chip view" data-view="make" type="button">Recipe creator</button>
+  </nav>
+
+  <section class="order" id="view-make" hidden>
+    <p class="eyebrow">Describe it</p>
+    <textarea id="mkdesc" rows="3" placeholder="A cold noodle salad with peanut and lime, something I can make ahead for crew lunch. Or just: proper carbonara."></textarea>
+
+    <p class="eyebrow" style="margin-top:18px">Anything to hold to</p>
+    <textarea id="mknote" rows="2" placeholder="Feeds 8. No pork. Has to survive two hours in a fridge."></textarea>
+
+    <div class="prow" style="margin-top:18px">
+      <button class="fire" id="mkwrite">Write it</button>
+      <button class="fire ghost" id="mkfind">Find one online</button>
+    </div>
+    <div id="mkout"></div>
+  </section>
+
+  <section class="order" id="view-pass">
     <p class="eyebrow">Service</p>
     <div class="chips" id="service"></div>
 
@@ -264,7 +287,7 @@
     <button class="fire" id="fire">Fire six tickets</button>
   </section>
 
-  <section class="rail">
+  <section class="rail" id="rail-pass">
     <div class="railhead" id="railhead">Rail — empty</div>
     <div id="out"><div class="state">Nothing on the rail yet. Load up the fridge and fire.</div></div>
   </section>
@@ -788,6 +811,10 @@ function zipStore(entries) {
   return out;
 }
 
+const hostOf = u => {
+  try { return new URL(u).hostname.replace(/^www\./, ""); } catch (e) { return ""; }
+};
+
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
   : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
       const r = Math.random() * 16 | 0;
@@ -824,7 +851,12 @@ function splitMethod(method) {
 
 function toPaprika(r, method) {
   const m = splitMethod(method);
-  const ingredients = m && m.ingredients.length
+  /* A created recipe arrives whole. A ticket carries matcher tokens and only
+     gains real quantities once the full method has been fetched. */
+  const made = Array.isArray(r.ingredients) && r.ingredients.length;
+  const ingredients = made
+    ? r.ingredients.join("\n")
+    : m && m.ingredients.length
     ? m.ingredients.join("\n")
     : [...(r.uses || []), ...(r.needs || []).map(n => n + " (to buy)")].join("\n");
   const directions = m && m.directions
@@ -845,11 +877,11 @@ function toPaprika(r, method) {
     prep_time: "",
     cook_time: r.minutes ? r.minutes + " min" : "",
     total_time: r.minutes ? r.minutes + " min" : "",
-    servings: "",
+    servings: r.servings || "",
     difficulty: "",
     rating: 0,
-    source: "PROvision",
-    source_url: "",
+    source: hostOf(r.source_url) || "PROvision",
+    source_url: r.source_url || "",
     image_url: "",
     photo: null,
     photo_large: null,
@@ -927,7 +959,7 @@ function onBrief(recipe, ing) {
 let lastRaw = "";
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function ask(prompt, tokensOut, schema) {
+async function ask(prompt, tokensOut, schema, tools) {
   if (!apiKey) throw new Error("NO KEY");
   /* This model thinks by default and thinking bills against max_tokens. At the
      old 1400 the reasoning ate the whole budget and the reply came back with no
@@ -949,6 +981,10 @@ async function ask(prompt, tokensOut, schema) {
      outright with a 400. Note the schema cannot carry minItems/maxItems — those
      counts live in the prompt as prose. */
   if (schema) payload.output_config.format = { type: "json_schema", schema };
+  /* Server-side search: runs on Anthropic's machines, so no extra key and no
+     backend. Tested alongside the schema — they compose, despite the docs
+     warning that citations and structured output do not. */
+  if (tools) payload.tools = tools;
   let res;
   try {
     res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -994,10 +1030,10 @@ async function ask(prompt, tokensOut, schema) {
   return text;
 }
 
-async function askRetry(prompt, tokensOut, onAttempt, schema) {
+async function askRetry(prompt, tokensOut, onAttempt, schema, tools) {
   let last;
   for (let attempt = 1; attempt <= 3; attempt++) {
-    try { return await ask(prompt, tokensOut, schema); }
+    try { return await ask(prompt, tokensOut, schema, tools); }
     catch (err) {
       last = err;
       const retryable = /REPLY BODY|REQUEST|API 5\d\d|API 429/.test(err.message);
@@ -1459,6 +1495,116 @@ Return exactly ${TICKETS} tickets.`;
     fireEl.textContent = "Fire six tickets";
   }
 }
+
+
+/* ============================================================
+   recipe creator
+   ============================================================
+   A second view rather than a second file: it reuses the model call, the
+   Paprika writer and the galley brief, and duplicating those to keep the
+   pages apart would be the worse trade. */
+const MAKE_SCHEMA = {
+  type: "object", additionalProperties: false, required: ["recipe"],
+  properties: { recipe: {
+    type: "object", additionalProperties: false,
+    required: ["title","note","minutes","servings","ingredients","steps","source_url"],
+    properties: {
+      title:       { type: "string" },
+      note:        { type: "string" },
+      minutes:     { type: "integer" },
+      servings:    { type: "string" },
+      ingredients: { type: "array", items: { type: "string" } },
+      steps:       { type: "array", items: { type: "string" } },
+      source_url:  { type: "string" }
+    }
+  } }
+};
+
+const mkOut = document.getElementById("mkout");
+let lastMade = null;
+
+function renderMade(r) {
+  lastMade = r;
+  const host = hostOf(r.source_url);
+  mkOut.innerHTML = `
+    <article class="ticket" style="margin-top:22px">
+      <div class="tnum">
+        <span>${host ? esc(host) : "Written for you"}</span>
+        <span>${esc(r.minutes)} min${r.servings ? " · " + esc(r.servings) : ""}</span>
+      </div>
+      <h2 class="tname">${esc(r.title)}</h2>
+      <p class="tnote">${esc(r.note || "")}</p>
+      <div class="method">${esc(r.ingredients.join("\n"))}</div>
+      <ol class="tsteps">${r.steps.map(x => `<li>${esc(x)}</li>`).join("")}</ol>
+      ${r.source_url ? `<p class="tnote"><a href="${esc(r.source_url)}" target="_blank" rel="noopener">${esc(r.source_url)}</a></p>` : ""}
+      <div class="trow">
+        <button class="topap" id="mksave" data-mode="save">Save for Paprika</button>
+      </div>
+    </article>`;
+  document.getElementById("mksave").onclick = async btn => {
+    const b = document.getElementById("mksave");
+    b.disabled = true; b.textContent = "Packing…";
+    try { b.textContent = await sendToPaprika(r, null, "save"); }
+    catch (e) { b.textContent = "Failed — retry"; b.disabled = false; }
+  };
+}
+
+async function makeRecipe(online) {
+  const desc = document.getElementById("mkdesc").value.trim();
+  if (!desc) { document.getElementById("mkdesc").focus(); return; }
+  if (!navigator.onLine || !apiKey) {
+    mkOut.innerHTML = '<div class="state">' +
+      (navigator.onLine ? "No API key set. Add one in Settings." : "No signal.") + '</div>';
+    return;
+  }
+  const hold = document.getElementById("mknote").value.trim();
+  const buttons = [document.getElementById("mkwrite"), document.getElementById("mkfind")];
+  buttons.forEach(b => { b.disabled = true; });
+  mkOut.innerHTML = '<div class="state"><span class="feed">▌</span> ' +
+    (online ? "Searching…" : "Writing…") + '</div>';
+
+  const brief = online
+    ? `Search for a real, published recipe that matches this, and return it as it is actually written. Use the wording, quantities and method from the page you found. Put the page's URL in source_url. Do not blend several recipes into one, and do not invent quantities the source does not give.`
+    : `Write this recipe yourself. Leave source_url empty.`;
+
+  const prompt = `${desc}
+${hold ? "\nHold to this: " + hold + "\n" : ""}
+${brief}
+
+${GALLEY}
+
+Quantities go in "ingredients", one per line, each with its amount. "steps" is the method in order, a sentence or two each. "note" is one line, max 20 words, on what makes it work. "minutes" is total elapsed time including any marinating or chilling. "servings" is plain text like "Serves 6".`;
+
+  try {
+    const raw = await askRetry(prompt, 16000, null, MAKE_SCHEMA,
+      /* Each search drops its results into the request, so uses cost input
+         tokens fast: five searches came to 91k tokens and about 58c. Three
+         still finds a real recipe for roughly half that. */
+      online ? [{ type: "web_search_20260209", name: "web_search", max_uses: 3 }] : null);
+    const data = JSON.parse(raw);
+    if (!data || !data.recipe) throw new Error("nothing came back");
+    renderMade(data.recipe);
+  } catch (e) {
+    mkOut.innerHTML = '<div class="state err">Couldn\'t do it.<br>' +
+      esc((e.name || "Error") + ": " + e.message) + '</div>';
+  } finally {
+    buttons.forEach(b => { b.disabled = false; });
+  }
+}
+
+document.getElementById("mkwrite").onclick = () => makeRecipe(false);
+document.getElementById("mkfind").onclick  = () => makeRecipe(true);
+
+/* view switching */
+document.querySelectorAll(".chip.view").forEach(b => {
+  b.onclick = () => {
+    const v = b.dataset.view;
+    document.querySelectorAll(".chip.view").forEach(o => o.classList.toggle("on", o === b));
+    document.getElementById("view-pass").hidden = v !== "pass";
+    document.getElementById("rail-pass").hidden = v !== "pass";
+    document.getElementById("view-make").hidden = v !== "make";
+  };
+});
 
 fireEl.onclick = fire;
 ingEl.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") fire(); });
