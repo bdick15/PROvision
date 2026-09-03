@@ -485,7 +485,7 @@ const CUISINES = ["Italian","French","Spanish","Greek","Middle Eastern","Morocca
 const SOURCES = [
   ["invented", "Off the cuff"],
   ["book",     "From the book"],
-  ["wire",     "Off the wire"]
+  ["canon",    "From the canon"]
 ];
 const TICKETS = 6;
 
@@ -1159,7 +1159,7 @@ const TICKET_SCHEMA = {
       uses:    { type: "array", items: { type: "string" } },
       needs:   { type: "array", items: { type: "string" } },
       steps:   { type: "array", items: { type: "string" } },
-      origin:  { type: "string", enum: ["invented", "book", "wire"] }
+      origin:  { type: "string", enum: ["invented", "book", "canon"] }
     }
   } } }
 };
@@ -1249,7 +1249,10 @@ function spread(options, n) {
 const SOURCE_BRIEF = {
   invented: "Invent this one. It should not be a dish that already exists under a name someone would recognise.",
   book: "Take this one from the cook's own recipe book, listed below. Use that dish as it is written there — do not invent a variant of it.",
-  wire: "This one is a real, established dish that people actually cook — a tried-and-true recipe, not an invention. Name it as it is normally known."
+  /* Named honestly: this is the model's rendition of a well-known dish, not a
+     recipe fetched from anywhere. Nothing here is verified against a source,
+     which is why the label no longer implies one. */
+  canon: "This one is a well-known dish that people already cook — a standard, not an invention. Name it as it is normally known. If you have had to bend it to fit what they have, say so in the note."
 };
 
 function buildBriefs(mode) {
@@ -1306,7 +1309,7 @@ Crew food rules: familiar beats clever. Generous portions. Minimal washing up. N
 /* ============================================================
    rendering
    ============================================================ */
-const ORIGIN_LABEL = { invented: "Off the cuff", book: "From the book", wire: "Off the wire" };
+const ORIGIN_LABEL = { invented: "Off the cuff", book: "From the book", canon: "From the canon" };
 
 function renderTickets(recipes, source, ctx) {
   headEl.textContent = "Rail — " + recipes.length + (source === "library" ? " from the library" : " up");

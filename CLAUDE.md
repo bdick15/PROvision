@@ -190,6 +190,34 @@ person, bone-in)" stays whole. Both send buttons are hidden until the full
 method has been fetched, because before that there is nothing worth
 sending.
 
+## The three sources
+
+A ticket comes from one of three places and says which on the dupe.
+
+| | Dish | Method |
+|---|---|---|
+| **Off the cuff** | invented | invented |
+| **From the book** | the cook's own | the cook's own, quoted from IndexedDB |
+| **From the canon** | a real, well-known dish | **the model's rendition** |
+
+**From the canon does not search.** It is a prompt instruction and nothing
+more — the fire request carries no tools. The dish name will be genuine; the
+ingredients and steps are the model's. It was called "Off the wire" until the
+label was judged to over-promise: it implied a source you could go and check,
+and there isn't one. Rename it back only alongside real search.
+
+There is a tension worth knowing about here. Every dish must be built from
+what is aboard, so a canon ticket is a well-known dish *bent to the fridge* —
+not the canonical version. Book tickets resolve this by handing over the real
+text; canon tickets reconcile it silently, so the brief asks the model to say
+in the note when it has adapted something.
+
+Web search is proven to work with structured output (see the recipe creator),
+so a per-ticket "find the real recipe" is the cheap upgrade path: fires stay
+around 10c and a search costs ~15c only on the dish actually being cooked.
+Searching the whole fire would put real recipes in context for the invented
+tickets too, and pull them toward what the model just read.
+
 ## Taste
 
 Ratings live in `provision:taste` as `{liked, disliked}`, each capped at 30,
