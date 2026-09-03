@@ -277,7 +277,7 @@ quantities once the full method is fetched.
 ## Things that will bite
 
 - **Bump `CACHE` in sw.js AND `VERSION` in index.html on every deploy**,
-  to the same number (`v22` → `v23`). VERSION shows as a pill in the header;
+  to the same number (`v1.24` → `v1.25`). VERSION shows as a pill in the header;
   they drift apart the moment one is bumped without the other, and then the
   pill lies about which build is running.
 - **The service worker is network first**, cache only as fallback, with a 4s
@@ -291,8 +291,8 @@ quantities once the full method is fetched.
 - The catch in `fire()` falls back to the library. It now prints the real
   error above the results — keep that. An earlier version swallowed it
   and cost a day of blind guessing.
-- localStorage holds the key, the Paprika book, kept tickets, today's
-  menu and recent titles. **Reinstalling the app wipes all of it** — this
+- localStorage holds the key, the Paprika book index, ratings and recent
+  titles; IndexedDB holds the book's full recipe text. **Reinstalling the app wipes all of it** — this
   has already happened once. The book is derived, so re-import fixes it;
   the key has to be pasted again.
 - iOS Safari is the only target that matters. Test there before calling
@@ -300,9 +300,6 @@ quantities once the full method is fetched.
 
 ## Backlog
 
-- Retire "Keep" and the local library. With no offline mode and Send to
-  Paprika in place it stores nothing anyone reads; the Settings
-  export/import go with it.
 - Hot dish / Cold dish should be mutually exclusive, like Lunch/Dinner.
 - Servings count.
 - Share or print the day's menu.

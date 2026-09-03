@@ -204,7 +204,7 @@
     <p class="sub">Tell me what's aboard. Six tickets come back.</p>
     <div class="statusrow">
       <span class="pill" id="netpill">checking</span>
-      <span class="pill" id="libpill">library 0</span>
+      <span class="pill" id="libpill">book —</span>
       <span class="pill" id="ratepill">taste —</span>
       <span class="pill" id="verpill"></span>
       <button class="pill tap" id="gear" type="button">Settings</button>
@@ -231,11 +231,6 @@
     <div class="prow"><button class="btn danger" id="clearTaste">Forget ratings</button></div>
     <p class="note" id="tastenote"></p>
 
-    <p style="margin-top:22px">Anything kept before Send to Paprika existed is still here. Export it if you want it, then this section can go.</p>
-    <div class="prow">
-      <button class="btn" id="export">Export library</button>
-    </div>
-    <textarea id="iobox" rows="4" style="display:none"></textarea>
     <p class="note" id="panelnote"></p>
   </section>
 
@@ -297,12 +292,13 @@
    PROvision — storage
    ============================================================ */
 /* Bump this together with CACHE in sw.js — same number, every deploy. On
-   screen so a stale service worker is visible instead of guessed at. */
-const VERSION = "v23";
+   screen so a stale service worker is visible instead of guessed at.
+   Minor increments; the leading 1 is there so it can be raised deliberately
+   rather than every version looking like a milestone. */
+const VERSION = "v1.24";
 
 const LS = {
   key:    "provision:key",
-  lib:    "provision:library",
   recent: "provision:recent",
   book:   "provision:paprika",
   taste:  "provision:taste"
@@ -315,12 +311,6 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 
 let apiKey = "";
 try { apiKey = localStorage.getItem(LS.key) || ""; } catch (e) {}
-
-/* Holds only what you Keep. There is no seed library and no offline mode —
-   the boat has Starlink, so a fire with no signal is an honest error, not a
-   silent downgrade to canned results. */
-let library = read(LS.lib, []);
-if (!Array.isArray(library)) library = [];
 
 /* What the cook made of previous tickets. Title plus the one-line note, which
    is where the character of a dish actually lives — "thighs stay juicy while
@@ -392,7 +382,7 @@ document.getElementById("clearkey").onclick = () => {
   apiKey = "";
   try { localStorage.removeItem(LS.key); } catch (e) {}
   document.getElementById("keyin").value = "";
-  pnote.textContent = "Key removed. The library still works offline.";
+  pnote.textContent = "Key removed.";
   paintStatus();
 };
 
@@ -439,13 +429,6 @@ bookFile.onchange = async () => {
   bookFile.value = "";
 };
 
-const iobox = document.getElementById("iobox");
-document.getElementById("export").onclick = () => {
-  iobox.style.display = "block";
-  iobox.value = JSON.stringify(library);
-  iobox.select();
-  pnote.textContent = "Copy this and mail it to yourself.";
-};
 /* ============================================================
    controls
    ============================================================ */
@@ -456,9 +439,8 @@ const MEALS   = ["Lunch","Dinner"];
    the dish, and the model treated all of them as soft. */
 const RULES   = ["Grain salad","Leaf salad","Sandwich / wrap","Soup","Main dish","Pasta","Appetizer","Carbohydrate","Vegetarian"];
 const CUISINES = ["Italian","French","Spanish","Greek","Middle Eastern","Moroccan","Indian","Thai","Vietnamese","Japanese","Korean","Chinese","Mexican","Caribbean","American","British"];
-/* Where a ticket comes from. Kitchen-pass names: off the cuff is improvised,
-   the book is the cook's own Paprika library, the wire is what the world
-   already cooks. */
+/* Where a ticket comes from. Off the cuff is improvised, the book is the
+   cook's own Paprika library, the canon is what the world already cooks. */
 const SOURCES = [
   ["invented", "Off the cuff"],
   ["book",     "From the book"],
@@ -559,7 +541,7 @@ SOURCES.forEach(([id, label]) => {
 });
 
 /* ============================================================
-   offline matching against the library
+   ingredient matching
    ============================================================ */
 const normalise = s => String(s).toLowerCase().replace(/[^a-z\s,]/g," ");
 const STOP = new Set(["and","the","with","some","for","from","half","few","two","three","four",
@@ -1305,7 +1287,7 @@ Crew food rules: familiar beats clever. Generous portions. Minimal washing up. N
 const ORIGIN_LABEL = { invented: "Off the cuff", book: "From the book", canon: "From the canon" };
 
 function renderTickets(recipes, source, ctx) {
-  headEl.textContent = "Rail — " + recipes.length + (source === "library" ? " from the library" : " up");
+  headEl.textContent = "Rail — " + recipes.length + " up";
   outEl.innerHTML = '<div class="tickets">' + recipes.map((r,i) => `
     <article class="ticket" style="animation-delay:${i*90}ms">
       <div class="tnum">

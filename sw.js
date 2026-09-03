@@ -1,6 +1,6 @@
 /* PROvision service worker.
    Bump CACHE here and VERSION in index.html together, to the same number. */
-const CACHE = "provision-v23";
+const CACHE = "provision-v1.24";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {
