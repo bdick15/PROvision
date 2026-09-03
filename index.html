@@ -195,7 +195,7 @@
   <header class="pass">
     <div class="bar"></div>
     <h1><span class="pro">PRO</span>vision</h1>
-    <p class="sub">Tell me what's aboard. Five tickets come back.</p>
+    <p class="sub">Tell me what's aboard. Six tickets come back.</p>
     <div class="statusrow">
       <span class="pill" id="netpill">checking</span>
       <span class="pill" id="libpill">library 0</span>
@@ -241,10 +241,20 @@
       <div class="chips" id="rules"></div>
     </div>
 
+    <div class="rules">
+      <p class="eyebrow">Cuisine</p>
+      <div class="chips" id="cuisine"></div>
+    </div>
+
+    <div class="rules">
+      <p class="eyebrow">Where from</p>
+      <div class="chips" id="sources"></div>
+    </div>
+
     <p class="eyebrow" style="margin-top:18px">Anything else</p>
     <textarea id="extra" rows="2" placeholder="Chief wants something light. Two vegetarians aboard. Use up the yoghurt."></textarea>
 
-    <button class="fire" id="fire">Fire five tickets</button>
+    <button class="fire" id="fire">Fire six tickets</button>
   </section>
 
   <section class="rail">
@@ -391,7 +401,20 @@ document.getElementById("importbtn").onclick = () => {
    ============================================================ */
 const STAPLES = ["eggs","butter","garlic","onion","lemon","olive oil","rice","pasta","chicken thighs","chickpeas","parmesan","yoghurt","potatoes","tinned tomatoes"];
 const MEALS   = ["Lunch","Dinner"];
-const RULES   = ["Vegetarian","No oven","Under 30 min","One pan","Salad","Appetizer","Main","Soup","Hot dish","Cold dish"];
+/* Dish shapes, not kitchen restrictions. The old list mixed the two — "No
+   oven" and "One pan" constrained the galley while "Salad" and "Soup" chose
+   the dish, and the model treated all of them as soft. */
+const RULES   = ["Grain salad","Leaf salad","Sandwich / wrap","Soup","Main dish","Pasta","Appetizer","Carbohydrate","Vegetarian"];
+const CUISINES = ["Italian","French","Spanish","Greek","Middle Eastern","Moroccan","Indian","Thai","Vietnamese","Japanese","Korean","Chinese","Mexican","Caribbean","American","British"];
+/* Where a ticket comes from. Kitchen-pass names: off the cuff is improvised,
+   the book is the cook's own Paprika library, the wire is what the world
+   already cooks. */
+const SOURCES = [
+  ["invented", "Off the cuff"],
+  ["book",     "From the book"],
+  ["wire",     "Off the wire"]
+];
+const TICKETS = 6;
 
 const staplesEl = document.getElementById("staples");
 const rulesEl   = document.getElementById("rules");
@@ -402,6 +425,8 @@ const fireEl    = document.getElementById("fire");
 const outEl     = document.getElementById("out");
 const headEl    = document.getElementById("railhead");
 const picked    = new Set();
+const cuisines  = new Set();
+const sources   = new Set(["invented"]);
 let meal = null;
 let service = "crew";
 
@@ -452,6 +477,35 @@ RULES.forEach(r => {
     on ? picked.delete(r) : picked.add(r);
   };
   rulesEl.appendChild(b);
+});
+
+const cuisineEl = document.getElementById("cuisine");
+CUISINES.forEach(c => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.type = "button"; b.textContent = c;
+  b.setAttribute("aria-pressed","false");
+  b.onclick = () => {
+    const on = b.getAttribute("aria-pressed") === "true";
+    b.setAttribute("aria-pressed", String(!on));
+    on ? cuisines.delete(c) : cuisines.add(c);
+  };
+  cuisineEl.appendChild(b);
+});
+
+/* At least one source has to stay on, or there is nothing to fire. */
+const sourcesEl = document.getElementById("sources");
+SOURCES.forEach(([id, label]) => {
+  const b = document.createElement("button");
+  b.className = "chip src"; b.type = "button"; b.textContent = label;
+  b.dataset.src = id;
+  b.setAttribute("aria-pressed", String(sources.has(id)));
+  b.onclick = () => {
+    const on = b.getAttribute("aria-pressed") === "true";
+    if (on && sources.size === 1) return;
+    on ? sources.delete(id) : sources.add(id);
+    b.setAttribute("aria-pressed", String(!on));
+  };
+  sourcesEl.appendChild(b);
 });
 
 /* ============================================================
@@ -941,14 +995,15 @@ const TICKET_SCHEMA = {
   type: "object", additionalProperties: false, required: ["tickets"],
   properties: { tickets: { type: "array", items: {
     type: "object", additionalProperties: false,
-    required: ["title","note","minutes","uses","needs","steps"],
+    required: ["title","note","minutes","uses","needs","steps","origin"],
     properties: {
       title:   { type: "string" },
       note:    { type: "string" },
       minutes: { type: "integer" },
       uses:    { type: "array", items: { type: "string" } },
       needs:   { type: "array", items: { type: "string" } },
-      steps:   { type: "array", items: { type: "string" } }
+      steps:   { type: "array", items: { type: "string" } },
+      origin:  { type: "string", enum: ["invented", "book", "wire"] }
     }
   } } }
 };
@@ -978,7 +1033,7 @@ const ANGLES = {
 };
 
 /* Role briefs are drawn fresh each run and shuffled, so the same fridge
-   doesn't produce the same five shapes in the same order every time.
+   doesn't produce the same shapes in the same order every time.
    These constrain how a dish eats, never what it is — naming
    "one tray" is how you get a traybake every single fire. */
 const ROLES = {
@@ -1025,10 +1080,55 @@ const shuffle = a => {
 };
 
 /* One angle per ticket rather than a single suggestion for the batch. */
+/* Deal n slots out over the chosen options as evenly as the count allows, then
+   shuffle so the order isn't predictable. Six tickets divides cleanly by one,
+   two or three sources. */
+function spread(options, n) {
+  if (!options.length) return new Array(n).fill(null);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(options[i % options.length]);
+  return shuffle(out);
+}
+
+const SOURCE_BRIEF = {
+  invented: "Invent this one. It should not be a dish that already exists under a name someone would recognise.",
+  book: "Take this one from the cook's own recipe book, listed below. Use one of those dishes as it is — do not invent a variant of it.",
+  wire: "This one is a real, established dish that people actually cook — a tried-and-true recipe, not an invention. Name it as it is normally known."
+};
+
 function buildBriefs(mode) {
-  const roles = shuffle(ROLES[mode]).slice(0, 5);
-  const angles = shuffle(ANGLES[mode]).slice(0, 5);
-  return roles.map((r, i) => `${i + 1}. ${r}. Lean this one toward ${angles[i]}.`).join("\n");
+  const roles  = shuffle(ROLES[mode]);
+  const angles = shuffle(ANGLES[mode]);
+  const src    = spread([...sources], TICKETS);
+  const dish   = spread([...picked], TICKETS);
+  const cuis   = spread([...cuisines], TICKETS);
+
+  return src.map((from, i) => {
+    /* A book ticket is chosen from a fixed list, so a role and a flavour angle
+       can only contradict it — "lean Korean" against a book with no Korean
+       dish in it. There, the dish type and cuisine become selection criteria
+       instead of instructions, and the role sits out entirely. */
+    if (from === "book") {
+      const want = [];
+      if (dish[i]) want.push(`a ${dish[i].toLowerCase()}`);
+      if (cuis[i]) want.push(`${cuis[i]} in character`);
+      return `${i + 1}. ${SOURCE_BRIEF.book}` +
+        (want.length ? ` Prefer one that is ${want.join(" and ")}, if the book has one.` : "") +
+        ` Set "origin" to "book".`;
+    }
+
+    /* A role and a dish type both dictate shape, so they fight: "in bread, a
+       wrap, or between two things" against "Soup" is an impossible brief.
+       When the cook has named a dish type, that wins and the role sits out. */
+    const bits = [`${i + 1}.`];
+    if (dish[i]) bits.push(`A ${dish[i].toLowerCase()}.`);
+    else bits.push(`${roles[i % roles.length]}.`);
+    if (cuis[i]) bits.push(`${cuis[i]} in character.`);
+    else bits.push(`Lean this one toward ${angles[i % angles.length]}.`);
+    bits.push(SOURCE_BRIEF[from]);
+    bits.push(`Set "origin" to "${from}".`);
+    return bits.join(" ");
+  }).join("\n");
 }
 
 const GALLEY = `Galley equipment — this is a boat, so it is strict:
@@ -1050,13 +1150,15 @@ Crew food rules: familiar beats clever. Generous portions. Minimal washing up. N
 /* ============================================================
    rendering
    ============================================================ */
+const ORIGIN_LABEL = { invented: "Off the cuff", book: "From the book", wire: "Off the wire" };
+
 function renderTickets(recipes, source, ctx) {
   headEl.textContent = "Rail — " + recipes.length + (source === "library" ? " from the library" : " up");
   outEl.innerHTML = '<div class="tickets">' + recipes.map((r,i) => `
     <article class="ticket" style="animation-delay:${i*90}ms">
       <div class="tnum">
         <span>Ticket ${String(i+1).padStart(2,"0")}</span>
-        <span>${esc(r.minutes)} min</span>
+        <span>${ORIGIN_LABEL[r.origin] || ""}${ORIGIN_LABEL[r.origin] ? " · " : ""}${esc(r.minutes)} min</span>
       </div>
       <h2 class="tname">${esc(r.title)}</h2>
       <p class="tnote">${esc(r.note || "")}</p>
@@ -1172,7 +1274,7 @@ async function fire() {
   fireEl.disabled = true;
   fireEl.textContent = "Firing…";
   headEl.textContent = "Rail — printing";
-  outEl.innerHTML = '<div class="state"><span class="feed">▌</span> Printing five tickets…</div>';
+  outEl.innerHTML = '<div class="state"><span class="feed">▌</span> Printing six tickets…</div>';
 
   const mealLine = meal ? `These are ${meal.toLowerCase()} dishes — pitch the weight and formality accordingly.` : "";
   /* These were being treated as hints — a "Cold dish, under 30 min, Salad"
@@ -1180,7 +1282,7 @@ async function fire() {
      filters, not preferences, and the wording has to say so. */
   const ruleLines = [...picked].map(r => "- " + r);
   const rules_text = (mealLine + (picked.size
-    ? "\n\nHARD CONSTRAINTS. Every one of the five must satisfy all of these. A dish that breaks one is not a candidate, however good it is — drop it and think of another:\n" +
+    ? "\n\nHARD CONSTRAINTS. Every ticket must satisfy all of these. A dish that breaks one is not a candidate, however good it is — drop it and think of another:\n" +
       ruleLines.join("\n") +
       "\n\"Under 30 min\" is total elapsed time from starting to plating, including any marinating, chilling, resting or proving. Overnight anything is not under 30 minutes. \"Cold dish\" means served cold or at room temperature, not a hot dish that has been left to cool."
     : "")).trim();
@@ -1193,14 +1295,22 @@ async function fire() {
   /* Two kinds of "they already have this": what is in their Paprika book, and
      what this app handed them lately. Same instruction, different provenance,
      so they read as one rule the model can act on. */
+  /* The book flips meaning depending on the sources chosen. With "From the
+     book" on it is the menu to pick from; without it, it is the list to avoid
+     so the cook isn't handed what they already own. */
   const owned = ownedNear(ing, 40);
+  const wantsBook = sources.has("book");
   const avoid = [];
-  if (owned.length) {
+  if (owned.length && wantsBook) {
+    avoid.push(`THE COOK'S OWN RECIPE BOOK — these are real recipes they already have, and the tickets marked "from the book" must be chosen from this list, by name:
+${owned.join(", ")}.
+Take the dish as it stands. Reconstruct its steps honestly from what the name and their ingredients imply, and keep them short — they will open the full recipe in their book.`);
+  } else if (owned.length) {
     avoid.push(`Already in this cook's recipe book. They own these and do not need them again. Do not return any of them, and do not return the same dish under a different name — a renamed near-variant is the same wasted ticket:
 ${owned.join(", ")}.`);
   }
   if (recent.length) {
-    avoid.push(`Also handed to them recently, same rule:
+    avoid.push(`Handed to them recently. Don't repeat these:
 ${recent.slice(0, 30).join(", ")}.`);
   }
   const banned = avoid.length ? "\n" + avoid.join("\n\n") + "\n" : "";
@@ -1210,7 +1320,7 @@ ${recent.slice(0, 30).join(", ")}.`);
 WHAT THEY HAVE — this is the whole point of the exercise:
 ${ing}
 
-Every one of the five dishes is built on that list. This is the hard rule and it beats everything below it.
+Every one of the ${TICKETS} dishes is built on that list. This is the hard rule and it beats everything below it.
 - Anything not on the list may appear only as pantry seasoning: oil, salt, spice, vinegar, stock, flour, sugar. Never as the protein, never as the centre of a dish.
 - If they listed a protein, every dish that has a protein uses one of theirs. Do not introduce beef because a brief suggested a stew, or fish because one suggested something light.
 - If a brief below cannot be done with what they have, bend the brief. The brief is a shape to aim at. Their ingredients are not negotiable.
@@ -1220,11 +1330,11 @@ ${rules_text}
 ${extra_text}
 ${GALLEY}
 ${banned}
-Give exactly 5 dishes, one for each brief below, in this order.
+Give exactly ${TICKETS} dishes, one for each brief below, in this order.
 
 ${briefs}
 
-No two of the five may share a primary format. If one is a stew, none of the others is. Same for anything built on pasta, rice, bread, or a tray of roasted things.
+No two of them may share a primary format. If one is a stew, none of the others is. Same for anything built on pasta, rice, bread, or a tray of roasted things.
 
 Specific over safe. A note that says "a comforting classic" is a wasted ticket — say what actually makes it work.
 
@@ -1234,8 +1344,8 @@ Field limits, all strict:
 - minutes: a number.
 - uses: max 3, words taken from their list.
 - needs: max 2 small pantry items, [] if none.
-- steps: exactly 3, max 12 words each.
-Return exactly 5 tickets.`;
+- steps: exactly 3, max 12 words each.\n- origin: exactly as the brief tells you.
+Return exactly ${TICKETS} tickets.`;
 
   let stage = "asking";
   try {
@@ -1246,11 +1356,7 @@ Return exactly 5 tickets.`;
     stage = "reading the tickets";
     const all = readTickets(raw);
     if (!all.length) throw new Error("No complete tickets in the reply.");
-    /* The prompt states the constraints; this is the backstop for when it
-       ignores them anyway, which is what prompted the wording above. */
-    const overTime = picked.has("Under 30 min");
-    const recipes = all.filter(r => onBrief(r, ing) &&
-      !(overTime && Number(r.minutes) > 30));
+    const recipes = all.filter(r => onBrief(r, ing));
     if (!recipes.length) throw new Error("Nothing came back that used your ingredients.");
     const dropped = all.length - recipes.length;
 
@@ -1271,7 +1377,7 @@ Return exactly 5 tickets.`;
       '</div>';
   } finally {
     fireEl.disabled = false;
-    fireEl.textContent = "Fire five tickets";
+    fireEl.textContent = "Fire six tickets";
   }
 }
 
