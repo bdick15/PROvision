@@ -252,9 +252,13 @@ what they own, and cook the way they like.
 
 A second view in the same file, not a second page — it reuses `ask()`,
 `toPaprika()` and the galley brief, and duplicating those to keep the pages
-apart would be the worse trade. "Write it" composes one; "Find one online"
-searches and returns a real published recipe with its URL, attributed to the
-site it came from.
+apart would be the worse trade. Describe a dish and "Write it" composes one,
+which then saves to Paprika through the existing writer.
+
+There was a "Find one online" that searched and returned a real published
+recipe with its URL. It worked, and it was removed on cost: 20-40c a press
+against 8c for a whole fire. The search plumbing in `ask()` (a `tools`
+argument) is still there and still works if it is ever worth turning back on.
 
 **Web search and structured output do compose**, despite the documented
 warning that citations and `output_config.format` are incompatible. Tested
@@ -272,7 +276,9 @@ quantities once the full method is fetched.
 
 ## Things that will bite
 
-- **Bump `CACHE` in sw.js on every deploy** (`provision-v7` → `v8`).
+- **Bump `CACHE` in sw.js AND `VERSION` in index.html on every deploy**,
+  to the same number (`v21` → `v22`). VERSION shows as a pill in the header,
+  so a stale service worker is visible rather than guessed at.
   Without it phones serve the old cached copy. Then open the app twice —
   first launch fetches, second shows.
 - `anthropic-dangerous-direct-browser-access: true` is required or the

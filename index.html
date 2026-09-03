@@ -147,18 +147,18 @@
     white-space:pre-wrap;color:#38332C;
   }
   .trow{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;}
-  .more,.keep,.topap,.rate{
+  .more,.topap,.rate{
     cursor:pointer;padding:9px 11px;border-radius:2px;background:transparent;
     border:1px dashed #B9B3A5;color:#6B655A;font-family:"IBM Plex Mono",monospace;
     font-size:11px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
   }
-  .keep,.topap{border-style:solid;}
+  .topap{border-style:solid;}
   .rate.on{background:var(--chive);border-color:var(--chive);color:#141A0E;}
   .rate.off{background:var(--alarm);border-color:var(--alarm);color:#fff;}
   .trow button[hidden]{display:none;}
   .more{flex:1;min-width:110px;}
-  .more:hover,.keep:hover,.rate:hover{border-color:var(--ink);color:var(--ink);}
-  .keep.done{background:var(--chive);border-color:var(--chive);color:#141A0E;}
+  .more:hover,.rate:hover{border-color:var(--ink);color:var(--ink);}
+  .topap.done{background:var(--chive);border-color:var(--chive);color:#141A0E;}
   .src{
     display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10px;
     letter-spacing:.1em;text-transform:uppercase;color:#8C857A;
@@ -206,6 +206,7 @@
       <span class="pill" id="netpill">checking</span>
       <span class="pill" id="libpill">library 0</span>
       <span class="pill" id="ratepill">taste —</span>
+      <span class="pill" id="verpill"></span>
       <button class="pill tap" id="gear" type="button">Settings</button>
     </div>
   </header>
@@ -230,12 +231,11 @@
     <div class="prow"><button class="btn danger" id="clearTaste">Forget ratings</button></div>
     <p class="note" id="tastenote"></p>
 
-    <p style="margin-top:22px">Your library lives on this device. Export it now and then so a lost phone doesn't take it with you.</p>
+    <p style="margin-top:22px">Anything kept before Send to Paprika existed is still here. Export it if you want it, then this section can go.</p>
     <div class="prow">
       <button class="btn" id="export">Export library</button>
-      <button class="btn" id="importbtn">Import library</button>
     </div>
-    <textarea id="iobox" rows="4" placeholder="Paste an exported library here, then press Import again." style="display:none"></textarea>
+    <textarea id="iobox" rows="4" style="display:none"></textarea>
     <p class="note" id="panelnote"></p>
   </section>
 
@@ -253,8 +253,6 @@
 
     <div class="prow" style="margin-top:18px">
       <button class="fire" id="mkwrite">Write it</button>
-      <button class="fire ghost" id="mkfind">Find one online</button>
-    </div>
     <div id="mkout"></div>
   </section>
 
@@ -298,6 +296,10 @@
 /* ============================================================
    PROvision — storage
    ============================================================ */
+/* Bump this together with CACHE in sw.js — same number, every deploy. On
+   screen so a stale service worker is visible instead of guessed at. */
+const VERSION = "v21";
+
 const LS = {
   key:    "provision:key",
   lib:    "provision:library",
@@ -355,6 +357,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">"
 const netPill = document.getElementById("netpill");
 const libPill = document.getElementById("libpill");
 const ratePill = document.getElementById("ratepill");
+document.getElementById("verpill").textContent = VERSION;
 const panel   = document.getElementById("panel");
 const pnote   = document.getElementById("panelnote");
 
@@ -366,7 +369,7 @@ function paintStatus() {
   ratePill.textContent = rated ? "taste " + taste.liked.length + "/" + taste.disliked.length : "taste —";
   libPill.textContent = book.recipes.length
     ? "book " + book.recipes.length
-    : "kept " + library.length;
+    : "book —";
 }
 addEventListener("online", paintStatus);
 addEventListener("offline", paintStatus);
@@ -443,32 +446,6 @@ document.getElementById("export").onclick = () => {
   iobox.select();
   pnote.textContent = "Copy this and mail it to yourself.";
 };
-document.getElementById("importbtn").onclick = () => {
-  if (iobox.style.display === "none" || !iobox.value.trim()) {
-    iobox.style.display = "block";
-    iobox.value = "";
-    pnote.textContent = "Paste an export above, then press Import again.";
-    return;
-  }
-  try {
-    const incoming = JSON.parse(iobox.value);
-    if (!Array.isArray(incoming)) throw new Error("not a library");
-    const seen = new Set(library.map(r => r.title.toLowerCase()));
-    let added = 0;
-    incoming.forEach(r => {
-      if (r && r.title && !seen.has(r.title.toLowerCase())) {
-        library.push(r); seen.add(r.title.toLowerCase()); added++;
-      }
-    });
-    write(LS.lib, library);
-    paintStatus();
-    pnote.textContent = "Added " + added + " recipe" + (added === 1 ? "" : "s") + ". Nothing was overwritten.";
-    iobox.value = "";
-  } catch (e) {
-    pnote.textContent = "That didn't look like an export.";
-  }
-};
-
 /* ============================================================
    controls
    ============================================================ */
@@ -1347,7 +1324,6 @@ function renderTickets(recipes, source, ctx) {
         ${source === "online" && !r.method ? `<button class="more" data-i="${i}">Full method</button>` : ""}
         ${source === "online" ? `<button class="topap" data-i="${i}" data-mode="save" ${r.method ? "" : "hidden"}>Save for Paprika</button>` : ""}
         ${source === "online" ? `<button class="topap" data-i="${i}" data-mode="share" ${r.method ? "" : "hidden"}>Share…</button>` : ""}
-        ${source === "online" ? `<button class="keep" data-i="${i}">Keep</button>` : ""}
         <button class="rate ${verdictOf(r.title) === "liked" ? "on" : ""}" data-i="${i}" data-v="liked">More like this</button>
         <button class="rate ${verdictOf(r.title) === "disliked" ? "off" : ""}" data-i="${i}" data-v="disliked">Less like this</button>
       </div>
@@ -1395,30 +1371,6 @@ function renderTickets(recipes, source, ctx) {
       setTimeout(() => {
         btn.disabled = false; btn.textContent = was; btn.classList.remove("done");
       }, 2500);
-    };
-  });
-
-  outEl.querySelectorAll(".keep").forEach(btn => {
-    btn.onclick = () => {
-      const r = recipes[Number(btn.dataset.i)];
-      const card = btn.closest(".ticket");
-      const methodEl = card.querySelector(".method");
-      const entry = {
-        title: r.title, note: r.note, minutes: r.minutes,
-        uses: r.uses || [], needs: r.needs || [], steps: r.steps || [],
-        method: methodEl ? methodEl.textContent : (r.method || ""),
-        service, meal: (ctx && ctx.meal ? ctx.meal.toLowerCase() : "both"),
-        tags: [...(ctx ? ctx.rules : [])]
-      };
-      if (library.some(x => x.title.toLowerCase() === entry.title.toLowerCase())) {
-        btn.textContent = "Already kept";
-      } else {
-        library.push(entry);
-        write(LS.lib, library);
-        paintStatus();
-        btn.textContent = "Kept";
-      }
-      btn.classList.add("done");
     };
   });
 
@@ -1654,7 +1606,7 @@ function renderMade(r) {
   };
 }
 
-async function makeRecipe(online) {
+async function makeRecipe() {
   const desc = document.getElementById("mkdesc").value.trim();
   if (!desc) { document.getElementById("mkdesc").focus(); return; }
   if (!navigator.onLine || !apiKey) {
@@ -1663,14 +1615,11 @@ async function makeRecipe(online) {
     return;
   }
   const hold = document.getElementById("mknote").value.trim();
-  const buttons = [document.getElementById("mkwrite"), document.getElementById("mkfind")];
+  const buttons = [document.getElementById("mkwrite")];
   buttons.forEach(b => { b.disabled = true; });
-  mkOut.innerHTML = '<div class="state"><span class="feed">▌</span> ' +
-    (online ? "Searching…" : "Writing…") + '</div>';
+  mkOut.innerHTML = '<div class="state"><span class="feed">▌</span> Writing…</div>';
 
-  const brief = online
-    ? `Search for a real, published recipe that matches this, and return it as it is actually written. Use the wording, quantities and method from the page you found. Put the page's URL in source_url. Do not blend several recipes into one, and do not invent quantities the source does not give.`
-    : `Write this recipe yourself. Leave source_url empty.`;
+  const brief = `Write this recipe yourself. Leave source_url empty.`;
 
   const prompt = `${desc}
 ${hold ? "\nHold to this: " + hold + "\n" : ""}
@@ -1681,11 +1630,7 @@ ${GALLEY}
 Quantities go in "ingredients", one per line, each with its amount. "steps" is the method in order, a sentence or two each. "note" is one line, max 20 words, on what makes it work. "minutes" is total elapsed time including any marinating or chilling. "servings" is plain text like "Serves 6".`;
 
   try {
-    const raw = await askRetry(prompt, 16000, null, MAKE_SCHEMA,
-      /* Each search drops its results into the request, so uses cost input
-         tokens fast: five searches came to 91k tokens and about 58c. Three
-         still finds a real recipe for roughly half that. */
-      online ? [{ type: "web_search_20260209", name: "web_search", max_uses: 3 }] : null);
+    const raw = await askRetry(prompt, 16000, null, MAKE_SCHEMA);
     const data = JSON.parse(raw);
     if (!data || !data.recipe) throw new Error("nothing came back");
     renderMade(data.recipe);
@@ -1697,8 +1642,7 @@ Quantities go in "ingredients", one per line, each with its amount. "steps" is t
   }
 }
 
-document.getElementById("mkwrite").onclick = () => makeRecipe(false);
-document.getElementById("mkfind").onclick  = () => makeRecipe(true);
+document.getElementById("mkwrite").onclick = () => makeRecipe();
 
 /* view switching */
 document.querySelectorAll(".chip.view").forEach(b => {
