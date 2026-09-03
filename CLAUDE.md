@@ -142,9 +142,22 @@ Both are written once at import and never on any other path. Losing either
 costs nothing — re-import rebuilds them.
 
 When "From the book" is on, the twelve strongest matches are hydrated from
-IndexedDB and go into the prompt with their real ingredients and method, so
-the model quotes the cook's own recipe instead of inventing one behind their
-title. Twelve is about two thousand tokens. If IndexedDB is unavailable or a
+IndexedDB and go into the prompt with their real ingredients and method.
+
+**A book ticket adapts the cook's recipe to the fridge, and that is wanted.**
+It arose by accident — the fridge rule declares that it beats everything
+below it, and the book block sits below — but the result turned out to be the
+most useful thing the source does, so it is now stated outright in both the
+brief and the hard rule instead of left as two instructions fighting. Their
+version is the basis; the fridge decides what changes. Do not "fix" this back
+to faithful reproduction.
+
+Because heavy adaptation leaves little of the original, book candidates are
+ranked by **coverage** — how much of the recipe's own ingredient list the
+fridge can actually supply — rather than by raw overlap. That needs each
+recipe's ingredient words, stored as `g` in the localStorage index at import
+(~150 bytes each). There is no coverage threshold: a thin fridge would return
+nothing at all. Twelve is about two thousand tokens. If IndexedDB is unavailable or a
 book predates this, hydration returns nothing and the prompt falls back to
 the older reconstruct wording — matching and steering still work.
 

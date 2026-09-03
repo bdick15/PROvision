@@ -743,7 +743,11 @@ async function setBook(entries) {
     seen.add(k);
     recipes.push({
       t: title,
-      h: normalise([title, e.categories || "", e.ingredients || ""].join(" "))
+      h: normalise([title, e.categories || "", e.ingredients || ""].join(" ")),
+      /* The recipe's own ingredient words, so a book candidate can be scored on
+         how much of it the fridge actually covers — not just on whether it
+         shares a word with what was typed. ~150 bytes a recipe. */
+      g: [...new Set(tokens(e.ingredients || ""))].slice(0, 24)
     });
   });
   book = { importedAt: Date.now(), recipes };
@@ -773,7 +777,7 @@ async function setBook(entries) {
    rice surfaces their chicken and rice dishes and nothing else. Capped: the
    list rides in the prompt and 800 titles above the ingredients is exactly the
    burial that made the model invent proteins. */
-function ownedNear(ing, cap) {
+function ownedNear(ing, cap, forBook) {
   const want = [...new Set(tokens(ing))].filter(Boolean);
   const N = book.recipes.length;
   if (!want.length || !N) return [];
@@ -794,9 +798,21 @@ function ownedNear(ing, cap) {
   book.recipes.forEach(r => {
     let score = 0;
     useful.forEach(w => { if (r.h.includes(w)) score++; });
-    if (score) hits.push({ t: r.t, score });
+    if (!score) return;
+    /* For book tickets, prefer recipes the fridge can nearly make. A dish
+       needing eight things they haven't got will be adapted so heavily that
+       little of their recipe survives; one they can nearly cover comes through
+       mostly intact. No hard threshold — a thin fridge would return nothing. */
+    let coverage = 0;
+    if (r.g && r.g.length) {
+      const have = r.g.filter(g => want.some(w => g.includes(w) || w.includes(g))).length;
+      coverage = have / r.g.length;
+    }
+    hits.push({ t: r.t, score, coverage });
   });
-  hits.sort((a, b) => b.score - a.score || a.t.length - b.t.length);
+  hits.sort((a, b) => forBook
+    ? (b.coverage - a.coverage) || (b.score - a.score) || (a.t.length - b.t.length)
+    : (b.score - a.score) || (a.t.length - b.t.length));
   return hits.slice(0, cap || 40).map(h => h.t);
 }
 
@@ -1248,7 +1264,7 @@ function spread(options, n) {
 
 const SOURCE_BRIEF = {
   invented: "Invent this one. It should not be a dish that already exists under a name someone would recognise.",
-  book: "Take this one from the cook's own recipe book, listed below. Use that dish as it is written there — do not invent a variant of it.",
+  book: "Take this one from the cook's own recipe book, listed below, and adapt their version to what is aboard. Start from their recipe, not from your own idea of the dish.",
   /* Named honestly: this is the model's rendition of a well-known dish, not a
      recipe fetched from anywhere. Nothing here is verified against a source,
      which is why the label no longer implies one. */
@@ -1474,7 +1490,7 @@ async function fire() {
   /* The book flips meaning depending on the sources chosen. With "From the
      book" on it is the menu to pick from; without it, it is the list to avoid
      so the cook isn't handed what they already own. */
-  const owned = ownedNear(ing, 40);
+  const owned = ownedNear(ing, 40, sources.has("book"));
   const wantsBook = sources.has("book");
   const avoid = [];
   if (owned.length && wantsBook) {
@@ -1488,7 +1504,7 @@ async function fire() {
         return `${r.t}\n  ingredients: ${r.i.replace(/\s*\n\s*/g, ", ").slice(0, 300)}` +
                (dir ? `\n  method: ${dir}` : "");
       }).join("\n\n");
-      avoid.push(`THE COOK'S OWN RECIPE BOOK — real recipes they already have, with their own text. A ticket marked "from the book" must be one of these, reproduced faithfully: keep its name, and base "uses" and "steps" on the ingredients and method given here rather than your own version of the dish.
+      avoid.push(`THE COOK'S OWN RECIPE BOOK — real recipes they already have, with their own text. A ticket marked "from the book" must be one of these. Start from the recipe as written here — its name, its ingredients, its method — and adapt it to what is aboard today. Their version is the basis, not your own idea of the dish; the fridge decides what changes. Swap or drop what they do not have and keep everything else as they wrote it.
 
 ${cards}${owned.length > full.length ? `\n\nAlso in the book, by name only: ${owned.slice(full.length).join(", ")}.` : ""}`);
     } else {
@@ -1527,6 +1543,7 @@ Every one of the ${TICKETS} dishes is built on that list. This is the hard rule 
 - If they listed a protein, every dish that has a protein uses one of theirs. Do not introduce beef because a brief suggested a stew, or fish because one suggested something light.
 - If a brief below cannot be done with what they have, bend the brief. The brief is a shape to aim at. Their ingredients are not negotiable.
 - "needs" is for a small pantry item they might be missing. It is never a protein and never the main event.
+- This applies to book recipes too: adapt them to what is aboard rather than reproducing an ingredient they do not have.
 
 ${rules_text}
 ${extra_text}
