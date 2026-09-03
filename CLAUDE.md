@@ -130,10 +130,23 @@ solution.
 Paprika is the system of record. This app never stores a recipe you care
 about — it proposes dishes, and hands the good ones over.
 
-**The book** (`provision:paprika`) is a derived index of what Paprika
-already holds: title, categories and the raw ingredients string, lowercased
-into one haystack per recipe. Written once at import, never on any other
-path. Losing it costs nothing — re-import rebuilds it.
+**The book is stored twice, deliberately.** Titles and the match haystack —
+title, categories and the raw ingredients string, lowercased — live in
+`provision:paprika` in localStorage, so `ownedNear()` can score 890 recipes
+synchronously on every fire. The full text, ingredients and method, goes to
+IndexedDB (`provision` / `recipes`, keyed on lowercased title) because it is
+roughly 1.6MB for 890 and a multi-megabyte synchronous write on import would
+block the page.
+
+Both are written once at import and never on any other path. Losing either
+costs nothing — re-import rebuilds them.
+
+When "From the book" is on, the twelve strongest matches are hydrated from
+IndexedDB and go into the prompt with their real ingredients and method, so
+the model quotes the cook's own recipe instead of inventing one behind their
+title. Twelve is about two thousand tokens. If IndexedDB is unavailable or a
+book predates this, hydration returns nothing and the prompt falls back to
+the older reconstruct wording — matching and steering still work.
 
 Two decisions worth not relitigating:
 

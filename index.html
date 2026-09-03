@@ -428,7 +428,7 @@ bookFile.onchange = async () => {
   try {
     const entries = await parsePaprika(f);
     if (!entries.length) throw new Error("no recipes found in that file");
-    const n = setBook(entries);
+    const n = await setBook(entries);
     bookNote.textContent = "Imported " + n + " recipes from " + f.name + ".";
   } catch (err) {
     bookNote.textContent = "Couldn't read that: " + err.message;
@@ -646,6 +646,7 @@ function harvest(value, into) {
     into.push({
       title: String(title),
       ingredients: String(value.ingredients || ""),
+      directions: String(value.directions || ""),
       categories: Array.isArray(cats) ? cats.join(" ") : String(cats || "")
     });
   }
@@ -673,11 +674,65 @@ async function parsePaprika(file) {
   return found;
 }
 
+/* Two stores, deliberately. Titles and the match haystack stay in
+   localStorage so ownedNear() can score 890 recipes synchronously on every
+   fire. The full text — ingredients and method, ~1.6MB for 890 — goes to
+   IndexedDB and is read only for the handful a prompt actually needs.
+   Putting all of it in localStorage would mean a multi-megabyte synchronous
+   write on import and a blocking read on load. */
+const DB_NAME = "provision", DB_STORE = "recipes";
+
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, 1);
+    r.onupgradeneeded = () => {
+      const db = r.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE, { keyPath: "k" });
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error || new Error("indexedDB unavailable"));
+  });
+}
+
+async function bookStore(records) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(DB_STORE, "readwrite");
+    const os = tx.objectStore(DB_STORE);
+    os.clear();
+    records.forEach(r => os.put(r));
+    tx.oncomplete = () => res(records.length);
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+/* Missing keys are skipped rather than failing the batch: a book imported
+   before directions were stored still matches, it just has nothing to hydrate
+   with, and the prompt falls back to reconstructing. */
+async function bookDetail(titles) {
+  if (!titles.length) return [];
+  let db;
+  try { db = await idb(); } catch (e) { return []; }
+  return new Promise(res => {
+    const tx = db.transaction(DB_STORE, "readonly");
+    const os = tx.objectStore(DB_STORE);
+    const out = [];
+    let left = titles.length;
+    const done = () => { if (!--left) res(out); };
+    titles.forEach(t => {
+      const q = os.get(t.toLowerCase());
+      q.onsuccess = () => { if (q.result) out.push(q.result); done(); };
+      q.onerror = done;
+    });
+    tx.onerror = () => res(out);
+  });
+}
+
 let book = read(LS.book, null);
 if (!book || !Array.isArray(book.recipes)) book = { importedAt: 0, recipes: [] };
 
 /* entries: [{ title, ingredients, categories }] — whatever the parser yields. */
-function setBook(entries) {
+async function setBook(entries) {
   const recipes = [];
   const seen = new Set();
   entries.forEach(e => {
@@ -692,6 +747,21 @@ function setBook(entries) {
     });
   });
   book = { importedAt: Date.now(), recipes };
+  write(LS.book, book);
+
+  /* Full text is a nice-to-have: if IndexedDB is unavailable or over quota the
+     book still matches and still steers, it just cannot quote itself. */
+  try {
+    await bookStore(entries.filter(e => e && e.title).map(e => ({
+      k: String(e.title).toLowerCase(),
+      t: String(e.title),
+      i: String(e.ingredients || "").trim(),
+      d: String(e.directions || "").trim()
+    })));
+    book.full = true;
+  } catch (err) {
+    book.full = false;
+  }
   write(LS.book, book);
   paintStatus();
   paintBook();
@@ -1178,7 +1248,7 @@ function spread(options, n) {
 
 const SOURCE_BRIEF = {
   invented: "Invent this one. It should not be a dish that already exists under a name someone would recognise.",
-  book: "Take this one from the cook's own recipe book, listed below. Use one of those dishes as it is — do not invent a variant of it.",
+  book: "Take this one from the cook's own recipe book, listed below. Use that dish as it is written there — do not invent a variant of it.",
   wire: "This one is a real, established dish that people actually cook — a tried-and-true recipe, not an invention. Name it as it is normally known."
 };
 
@@ -1405,9 +1475,24 @@ async function fire() {
   const wantsBook = sources.has("book");
   const avoid = [];
   if (owned.length && wantsBook) {
-    avoid.push(`THE COOK'S OWN RECIPE BOOK — these are real recipes they already have, and the tickets marked "from the book" must be chosen from this list, by name:
+    /* Hydrate the strongest handful with their real text so the model quotes
+       the cook's own recipe rather than inventing one behind their title.
+       Twelve keeps it to roughly two thousand tokens. */
+    const full = await bookDetail(owned.slice(0, 12));
+    if (full.length) {
+      const cards = full.map(r => {
+        const dir = r.d ? r.d.replace(/\s+/g, " ").slice(0, 600) : "";
+        return `${r.t}\n  ingredients: ${r.i.replace(/\s*\n\s*/g, ", ").slice(0, 300)}` +
+               (dir ? `\n  method: ${dir}` : "");
+      }).join("\n\n");
+      avoid.push(`THE COOK'S OWN RECIPE BOOK — real recipes they already have, with their own text. A ticket marked "from the book" must be one of these, reproduced faithfully: keep its name, and base "uses" and "steps" on the ingredients and method given here rather than your own version of the dish.
+
+${cards}${owned.length > full.length ? `\n\nAlso in the book, by name only: ${owned.slice(full.length).join(", ")}.` : ""}`);
+    } else {
+      avoid.push(`THE COOK'S OWN RECIPE BOOK — these are real recipes they already have, and the tickets marked "from the book" must be chosen from this list, by name:
 ${owned.join(", ")}.
 Take the dish as it stands. Reconstruct its steps honestly from what the name and their ingredients imply, and keep them short — they will open the full recipe in their book.`);
+    }
   } else if (owned.length) {
     avoid.push(`Already in this cook's recipe book. They own these and do not need them again. Do not return any of them, and do not return the same dish under a different name — a renamed near-variant is the same wasted ticket:
 ${owned.join(", ")}.`);
